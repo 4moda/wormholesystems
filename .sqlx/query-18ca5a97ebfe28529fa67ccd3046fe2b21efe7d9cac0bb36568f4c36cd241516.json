@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select tracking_allowed, show_threat_level, compact_signature_list,\n                  show_statics_first,\n                  route_preference,\n                  security_penalty,\n                  route_allow_time_status,\n                  route_allow_mass_status,\n                  route_use_evescout,\n                  route_use_wormholes,\n                  prompt_for_signature, preselect_signature, suggest_alias, copy_bookmark,\n                  follow_character, tracked_character_ids,\n                  killmail_filter,\n                  is_archived,\n                  (introduction_confirmed_at is not null) as \"introduction_confirmed!\",\n                  hidden_panels, layout_breakpoints,\n                  layout_override, is_pinned,\n                  background_image_path,\n                  background_image_mode\n           from map_user_settings where map_id = $1 and user_id = $2",
+  "query": "select tracking_allowed, structures_shared, show_threat_level,\n                  compact_signature_list,\n                  show_statics_first,\n                  route_preference,\n                  security_penalty,\n                  route_allow_time_status,\n                  route_allow_mass_status,\n                  route_use_evescout,\n                  route_use_wormholes,\n                  prompt_for_signature, preselect_signature, suggest_alias, copy_bookmark,\n                  follow_character, tracked_character_ids,\n                  killmail_filter,\n                  is_archived,\n                  (introduction_confirmed_at is not null) as \"introduction_confirmed!\",\n                  hidden_panels, layout_breakpoints,\n                  layout_override, is_pinned,\n                  background_image_path,\n                  background_image_mode\n           from map_user_settings where map_id = $1 and user_id = $2",
   "describe": {
     "columns": [
       {
@@ -16,6 +16,17 @@
       },
       {
         "ordinal": 1,
+        "name": "structures_shared",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "map_user_settings",
+            "name": "structures_shared"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
         "name": "show_threat_level",
         "type_info": "Bool",
         "origin": {
@@ -26,7 +37,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "compact_signature_list",
         "type_info": "Bool",
         "origin": {
@@ -37,7 +48,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "show_statics_first",
         "type_info": "Bool",
         "origin": {
@@ -48,7 +59,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "route_preference",
         "type_info": {
           "Custom": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "security_penalty",
         "type_info": "Int4",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "route_allow_time_status",
         "type_info": {
           "Custom": {
@@ -104,7 +115,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "route_allow_mass_status",
         "type_info": {
           "Custom": {
@@ -126,7 +137,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "route_use_evescout",
         "type_info": "Bool",
         "origin": {
@@ -137,7 +148,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "route_use_wormholes",
         "type_info": "Bool",
         "origin": {
@@ -148,7 +159,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "prompt_for_signature",
         "type_info": "Bool",
         "origin": {
@@ -159,7 +170,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "preselect_signature",
         "type_info": "Bool",
         "origin": {
@@ -170,7 +181,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "suggest_alias",
         "type_info": "Bool",
         "origin": {
@@ -181,7 +192,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "copy_bookmark",
         "type_info": "Bool",
         "origin": {
@@ -192,7 +203,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "follow_character",
         "type_info": "Bool",
         "origin": {
@@ -203,7 +214,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "tracked_character_ids",
         "type_info": "Int8Array",
         "origin": {
@@ -214,7 +225,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "killmail_filter",
         "type_info": {
           "Custom": {
@@ -237,7 +248,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "is_archived",
         "type_info": "Bool",
         "origin": {
@@ -248,13 +259,13 @@
         }
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "introduction_confirmed!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 19,
+        "ordinal": 20,
         "name": "hidden_panels",
         "type_info": "TextArray",
         "origin": {
@@ -265,7 +276,7 @@
         }
       },
       {
-        "ordinal": 20,
+        "ordinal": 21,
         "name": "layout_breakpoints",
         "type_info": "Jsonb",
         "origin": {
@@ -276,7 +287,7 @@
         }
       },
       {
-        "ordinal": 21,
+        "ordinal": 22,
         "name": "layout_override",
         "type_info": {
           "Custom": {
@@ -297,7 +308,7 @@
         }
       },
       {
-        "ordinal": 22,
+        "ordinal": 23,
         "name": "is_pinned",
         "type_info": "Bool",
         "origin": {
@@ -308,7 +319,7 @@
         }
       },
       {
-        "ordinal": 23,
+        "ordinal": 24,
         "name": "background_image_path",
         "type_info": "Text",
         "origin": {
@@ -319,7 +330,7 @@
         }
       },
       {
-        "ordinal": 24,
+        "ordinal": 25,
         "name": "background_image_mode",
         "type_info": {
           "Custom": {
@@ -365,6 +376,7 @@
       false,
       false,
       false,
+      false,
       null,
       false,
       true,
@@ -374,5 +386,5 @@
       false
     ]
   },
-  "hash": "5b55b81969193ee2b7ec6d042d580c61616bd8c163f14d68ca6fb8ede1bdc1d3"
+  "hash": "18ca5a97ebfe28529fa67ccd3046fe2b21efe7d9cac0bb36568f4c36cd241516"
 }
