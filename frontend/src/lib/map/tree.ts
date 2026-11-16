@@ -15,8 +15,8 @@ export interface TreeInput {
 	edges: TreeEdge[];
 	/** Pinned systems, which become the roots the branches grow out of. */
 	rootIds: number[];
-	/** A root like the pinned ones, and the one the column starts with. */
-	homeId?: number | null;
+	/** Roots like the pinned ones, and the ones the column starts with. */
+	homeIds?: number[];
 	/** Used as the root when nothing is pinned and there is no home system. */
 	fallbackRootId?: number | null;
 	/** Orders siblings, and the separate trees, down the cross axis. */
@@ -124,10 +124,10 @@ export function computeTreeLayout(
 
 	// Pinned first, stranded after, so the left column reads in order of what matters.
 	const chosen = new Set<number>();
-	const home = input.homeId != null && adjacency.has(input.homeId) ? input.homeId : null;
+	const homes = new Set((input.homeIds ?? []).filter((id) => adjacency.has(id)));
 	const candidates = [
-		...(home === null ? [] : [home]),
-		...input.rootIds.filter((id) => adjacency.has(id) && id !== home),
+		...homes,
+		...input.rootIds.filter((id) => adjacency.has(id) && !homes.has(id)),
 	];
 	if (
 		candidates.length === 0 &&
@@ -159,7 +159,7 @@ export function computeTreeLayout(
 		for (const [, children] of childrenOf) children.sort(compare);
 	}
 	// Home, then pinned, then unreached; the comparator only orders within each rank.
-	const rank = (id: number) => (id === home ? 0 : chosen.has(id) ? 1 : 2);
+	const rank = (id: number) => (homes.has(id) ? 0 : chosen.has(id) ? 1 : 2);
 	roots.sort((a, b) => rank(a) - rank(b) || (compare ? compare(a, b) : 0));
 
 	// --- The forest as linked records the walks can chew on. ---

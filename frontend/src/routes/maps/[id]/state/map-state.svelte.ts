@@ -252,7 +252,7 @@ export class MapState {
 					nodeIds: this.systemsView.map((s) => s.id),
 					edges: this.connectionsView.map((c) => ({ from: c.from_system, to: c.to_system })),
 					rootIds: this.systemsView.filter((s) => s.is_pinned).map((s) => s.id),
-					homeId: this.systemsView.find((s) => s.is_home)?.id ?? null,
+					homeIds: this.systemsView.filter((s) => s.is_home).map((s) => s.id),
 					fallbackRootId: null,
 					compareNodes: compareForTree(systems),
 				},
