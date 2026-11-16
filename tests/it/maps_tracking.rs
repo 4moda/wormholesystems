@@ -441,3 +441,69 @@ async fn a_desktop_app_holds_the_characters_it_watches() {
     assert_eq!(mine(characters::list(&pool, w.owner).await.unwrap()), None);
     assert!(heard.try_recv().is_ok());
 }
+
+async fn placement_of(pool: &PgPool, actor: Actor, map_id: i64, sys: i64) -> i64 {
+    get_map(pool, actor, GetMap { map_id })
+        .await
+        .expect("get_map")
+        .systems
+        .iter()
+        .find(|s| s.solar_system_id() == Some(sys))
+        .expect("the system is on the map")
+        .id()
+}
+
+#[tokio::test]
+async fn a_jump_that_says_no_size_takes_the_one_its_ends_allow() {
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    let a = place_at(&pool, w.owner, w.map_id, SYS_A, 0.0).await;
+    let (c1, c13, c5) = (31000101, 31000113, 31000105);
+    common::catalog::seed_wormhole_system(&pool, c1, 1).await;
+    common::catalog::seed_wormhole_system(&pool, c13, 13).await;
+    common::catalog::seed_wormhole_system(&pool, c5, 5).await;
+
+    track_jump(&pool, w.owner, jump(w.map_id, a, c1))
+        .await
+        .unwrap();
+    track_jump(&pool, w.owner, jump(w.map_id, a, c13))
+        .await
+        .unwrap();
+    // Nothing about a C5 rules a size out, and what the pilot said is never second-guessed.
+    track_jump(&pool, w.owner, jump(w.map_id, a, c5))
+        .await
+        .unwrap();
+    let c1_placement = placement_of(&pool, w.owner, w.map_id, c1).await;
+    track_jump(
+        &pool,
+        w.owner,
+        TrackJump {
+            size: Some(WormholeSize::Small),
+            ..jump(w.map_id, c1_placement, c5)
+        },
+    )
+    .await
+    .unwrap();
+
+    let view = get_map(&pool, w.owner, GetMap { map_id: w.map_id })
+        .await
+        .unwrap();
+    let size_to = |from: i64, to: i64| {
+        view.connections
+            .iter()
+            .find(|c| c.from_system == from && c.to_system == to)
+            .expect("the connection")
+            .size
+    };
+    let placed = |sys: i64| {
+        view.systems
+            .iter()
+            .find(|s| s.solar_system_id() == Some(sys))
+            .expect("the system")
+            .id()
+    };
+    assert_eq!(size_to(a, placed(c1)), Some(WormholeSize::Medium));
+    assert_eq!(size_to(a, placed(c13)), Some(WormholeSize::Small));
+    assert_eq!(size_to(a, placed(c5)), None);
+    assert_eq!(size_to(c1_placement, placed(c5)), Some(WormholeSize::Small));
+}
