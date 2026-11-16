@@ -10999,7 +10999,19 @@
               "integer",
               "null"
             ],
-            "format": "int64"
+            "format": "int64",
+            "description": "The first home system, which is all the legacy app reads."
+          },
+          "home_solarsystem_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Every home system. A file without it has the one above."
           },
           "layout": {
             "$ref": "#/components/schemas/MapLayout"
@@ -12539,6 +12551,12 @@
               "boolean",
               "null"
             ]
+          },
+          "route_previews": {
+            "type": [
+              "boolean",
+              "null"
+            ]
           }
         }
       },
@@ -12605,12 +12623,17 @@
       "UserPreferences": {
         "type": "object",
         "required": [
-          "effect_icons"
+          "effect_icons",
+          "route_previews"
         ],
         "properties": {
           "effect_icons": {
             "type": "boolean",
             "description": "The game's icon on a wormhole effect badge; off shows the effect's letter instead."
+          },
+          "route_previews": {
+            "type": "boolean",
+            "description": "The route drawn next to a jump count in the lists, a mark per system on the way."
           }
         }
       },
