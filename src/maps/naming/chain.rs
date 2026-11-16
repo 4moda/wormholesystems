@@ -30,7 +30,7 @@ impl NamingStrategy for Chain {
         let parent = origin.alias.as_deref().filter(|a| !a.trim().is_empty());
         Some(guess_next_alias(
             parent,
-            &map.aliases(),
+            &map.aliases_seen_from(origin.id),
             map.settings.alias_scheme,
             kspace,
             &map.settings.ignored_alias,
@@ -438,6 +438,7 @@ mod tests {
             id,
             alias: alias.map(Into::into),
             is_home: false,
+            is_pinned: false,
             system: Some(NodeSystem {
                 solar_system_id: 30_000_000 + id,
                 name: format!("S{id}"),
@@ -451,6 +452,78 @@ mod tests {
 
     fn map_of(nodes: Vec<Node>) -> NamingMap {
         NamingMap::new(settings(), nodes, Vec::new())
+    }
+
+    fn edge(id: i64, from: i64, to: i64) -> crate::maps::naming::Edge {
+        crate::maps::naming::Edge {
+            id,
+            from,
+            to,
+            size: None,
+            mass_status: None,
+            time_status: None,
+        }
+    }
+
+    /// Two roots that do not touch, the first with a hole `1` already.
+    fn two_chains(second: Node) -> NamingMap {
+        let home = Node {
+            is_home: true,
+            ..node(1, None, Some(5), -1.0)
+        };
+        let taken = node(2, Some("1"), Some(5), -1.0);
+        NamingMap::new(settings(), vec![home, taken, second], vec![edge(1, 1, 2)])
+    }
+
+    fn c5() -> Target {
+        Target {
+            class: Some(5),
+            security: Some(-1.0),
+        }
+    }
+
+    #[test]
+    fn a_pinned_system_off_on_its_own_starts_its_own_sequence() {
+        let pinned = Node {
+            is_pinned: true,
+            ..node(3, None, Some(5), -1.0)
+        };
+        let map = two_chains(pinned.clone());
+        assert_eq!(Chain.alias(&map, &pinned, &c5()).as_deref(), Some("1"));
+        // Home's own chain still sees its `1`.
+        let home = map.node(1).unwrap();
+        assert_eq!(Chain.alias(&map, home, &c5()).as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn a_second_home_starts_its_own_sequence() {
+        let other = Node {
+            is_home: true,
+            ..node(3, None, Some(5), -1.0)
+        };
+        let map = two_chains(other.clone());
+        assert_eq!(Chain.alias(&map, &other, &c5()).as_deref(), Some("1"));
+    }
+
+    #[test]
+    fn a_system_with_no_root_still_stays_clear_of_every_alias() {
+        let adrift = node(3, None, Some(5), -1.0);
+        let map = two_chains(adrift.clone());
+        assert_eq!(Chain.alias(&map, &adrift, &c5()).as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn a_pin_inside_homes_chain_shares_its_sequence() {
+        let home = Node {
+            is_home: true,
+            ..node(1, None, Some(5), -1.0)
+        };
+        let pinned = Node {
+            is_pinned: true,
+            ..node(2, Some("1"), Some(5), -1.0)
+        };
+        let map = NamingMap::new(settings(), vec![home.clone(), pinned], vec![edge(1, 1, 2)]);
+        assert_eq!(Chain.alias(&map, &home, &c5()).as_deref(), Some("2"));
     }
 
     #[test]

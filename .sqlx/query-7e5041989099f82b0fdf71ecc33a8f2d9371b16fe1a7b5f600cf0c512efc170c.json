@@ -1,22 +1,23 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select effect_icons from user_preferences where user_id = $1",
+  "query": "select is_home from map_solar_systems where id = $1 and map_id = $2",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "effect_icons",
+        "name": "is_home",
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "user_preferences",
-            "name": "effect_icons"
+            "table": "map_solar_systems",
+            "name": "is_home"
           }
         }
       }
     ],
     "parameters": {
       "Left": [
+        "Int8",
         "Int8"
       ]
     },
@@ -24,5 +25,5 @@
       false
     ]
   },
-  "hash": "d420a247dd48ab40a8617d79e78cb0b2760718603a5026efd9039a1f40fdf206"
+  "hash": "7e5041989099f82b0fdf71ecc33a8f2d9371b16fe1a7b5f600cf0c512efc170c"
 }

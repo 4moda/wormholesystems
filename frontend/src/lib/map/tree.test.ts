@@ -34,7 +34,7 @@ describe('computeTreeLayout', () => {
 			nodeIds: [1, 2],
 			edges: [{ from: 1, to: 2 }],
 			rootIds: [],
-			homeId: 2,
+			homeIds: [2],
 		});
 
 		expect(positions.get(2)!.x).toBe(20);
@@ -52,7 +52,7 @@ describe('computeTreeLayout', () => {
 				{ from: 3, to: 9 },
 			],
 			rootIds: [1],
-			homeId: 9,
+			homeIds: [9],
 		});
 
 		expect(positions.get(9)!.x).toBe(20);
@@ -67,7 +67,7 @@ describe('computeTreeLayout', () => {
 				{ from: 2, to: 9 },
 			],
 			rootIds: [1],
-			homeId: 9,
+			homeIds: [9],
 			// Sorts the pinned system first, which must not lift it above home.
 			compareNodes: (a, b) => a - b,
 		});
@@ -75,12 +75,29 @@ describe('computeTreeLayout', () => {
 		expect(positions.get(9)!.y).toBeLessThan(positions.get(1)!.y);
 	});
 
+	it('roots a tree at each home when there are several', () => {
+		const positions = layout({
+			nodeIds: [1, 2, 3, 4],
+			edges: [
+				{ from: 1, to: 2 },
+				{ from: 3, to: 4 },
+			],
+			rootIds: [],
+			homeIds: [1, 3],
+		});
+
+		expect(positions.get(1)!.x).toBe(20);
+		expect(positions.get(3)!.x).toBe(20);
+		expect(positions.get(2)!.x).toBe(340);
+		expect(positions.get(4)!.x).toBe(340);
+	});
+
 	it('does not root the home system twice when it is also pinned', () => {
 		const positions = layout({
 			nodeIds: [1, 2],
 			edges: [{ from: 1, to: 2 }],
 			rootIds: [1],
-			homeId: 1,
+			homeIds: [1],
 		});
 
 		expect(positions.size).toBe(2);
