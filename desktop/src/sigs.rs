@@ -646,8 +646,7 @@ impl Panel<'_> {
                 let map = sigs
                     .snapshot
                     .as_ref()
-                    .map(|s| format!("{} · ", s.map.name))
-                    .unwrap_or_default();
+                    .map_or_default(|s| format!("{} · ", s.map.name));
                 let sub = format!(
                     "{map}{} · {all} signature{}{hidden}",
                     here.character,

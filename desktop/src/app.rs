@@ -185,12 +185,7 @@ impl DesktopApp {
         let chatlog_dir = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Documents/EVE/logs/Chatlogs")
-                .default_value(
-                    found
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_default(),
-                )
+                .default_value(found.as_ref().map_or_default(|p| p.display().to_string()))
         });
         let sigs = cx.new(|_| Sigs {
             overlay: config.overlay.clone(),
@@ -950,7 +945,7 @@ impl DesktopApp {
         cx: &mut Context<'_, Self>,
     ) {
         let copied = self.config.copy_on_jump && !bookmark.is_empty() && self.copy(&bookmark);
-        let mut text = what.map(|w| format!("{w}. ")).unwrap_or_default();
+        let mut text = what.map_or_default(|w| format!("{w}. "));
         if copied {
             write!(
                 text,

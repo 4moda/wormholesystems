@@ -365,16 +365,12 @@ impl Render for OverlayView {
         self.update_input_region(popup, window);
         #[cfg(not(target_os = "linux"))]
         self.sync_native_input(window, cx);
-        let guides: Vec<AnyElement> = self
-            .drag
-            .as_ref()
-            .map(|d| {
-                d.guides
-                    .iter()
-                    .map(|g| guide_line(*g, viewport, theme.primary.opacity(0.6)))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let guides: Vec<AnyElement> = self.drag.as_ref().map_or_default(|d| {
+            d.guides
+                .iter()
+                .map(|g| guide_line(*g, viewport, theme.primary.opacity(0.6)))
+                .collect()
+        });
 
         div()
             .size_full()
