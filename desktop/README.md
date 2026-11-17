@@ -41,7 +41,8 @@ you just flew and name the system you are in.
   closes.
 - Hole keys act on the last hole jumped and copy the updated bookmark afterwards, so a
   `{mass}` or `{life}` token in your format stays right.
-- The overlay sits in a screen corner and takes clicks, never the keyboard. On Wayland it
+- The overlay sits in a screen corner and takes clicks, never the keyboard. With more than
+  one monitor, Settings picks the one it is on. On Wayland it
   is a layer-shell surface, which compositors keep above everything (GNOME has no layer
   shell and gets a pop-up window); elsewhere it is a pop-up window.
 
