@@ -88,8 +88,7 @@ fn main() {
                         .global::<Shell>()
                         .tray
                         .as_ref()
-                        .map(Tray::events)
-                        .unwrap_or_default();
+                        .map_or_default(Tray::events);
                     for event in events {
                         on_tray(event, cx);
                     }
