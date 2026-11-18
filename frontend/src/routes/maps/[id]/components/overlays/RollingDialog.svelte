@@ -9,9 +9,7 @@
 	// want from it across the top. Holes of one mass roll alike whatever their jump limit,
 	// as long as the ship fits, so a tab is a total mass and not a hole type.
 	import * as v from 'valibot';
-	import FlameIcon from '@lucide/svelte/icons/flame';
 	import SearchIcon from '@lucide/svelte/icons/search';
-	import SnowflakeIcon from '@lucide/svelte/icons/snowflake';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import Undo2Icon from '@lucide/svelte/icons/undo-2';
 
@@ -21,6 +19,8 @@
 	import { formatKt } from '$lib/map/mass';
 	import { cn } from '$lib/utils';
 	import {
+		describeJumps,
+		jumpOrder,
 		massClasses,
 		rollPlan,
 		type Jumps,
@@ -122,33 +122,47 @@
 	const nothingFound = $derived(wanted !== '' && !groups.some((g) => g.codes.some(hit)));
 </script>
 
-<!-- The same two marks wherever a jump is named: a snowflake for cold, a flame for hot. -->
-{#snippet jumps(j: Jumps, size: 'lg' | 'md')}
-	{@const pill = cn(
-		'inline-flex items-center border border-border bg-background font-medium text-foreground tabular-nums',
-		size === 'lg' ? 'gap-2 px-3 py-1.5 text-lg' : 'gap-1.5 px-2 py-1 text-sm',
-	)}
-	{@const mark = cn('text-muted-foreground', size === 'lg' ? 'size-4' : 'size-3.5')}
-	<span class="flex flex-wrap items-center gap-1.5">
-		{#if j.cold + j.hot === 0}
+<!-- A set of jumps as the row of jumps it is, in the order to fly them: hot filled, cold
+     outlined, and under each which way it goes. Counting them is the roller's whole job, so
+     they are laid out to be counted. -->
+{#snippet trail(j: Jumps, last: 'cold' | 'hot' | null, away: boolean, size: 'lg' | 'md')}
+	{@const order = jumpOrder(j, last, away)}
+	<div
+		class="flex flex-wrap items-start gap-y-2"
+		role="img"
+		aria-label={describeJumps(j)}
+		data-jumps={order.map((jump) => jump.mass).join(' ')}
+	>
+		{#each order as jump, i (i)}
+			{#if i > 0}
+				<span class={cn('w-2 border-t border-border', size === 'lg' ? 'mt-4' : 'mt-3')}></span>
+			{/if}
+			<span class="flex flex-col items-center gap-1">
+				<span
+					class={cn(
+						'flex items-center justify-center border font-medium',
+						size === 'lg' ? 'h-8 w-14 text-sm' : 'h-6 w-10 text-xs',
+						jump.mass === 'hot'
+							? 'border-foreground bg-foreground text-background'
+							: 'border-border bg-background text-foreground',
+					)}
+				>
+					{jump.mass === 'hot' ? 'Hot' : 'Cold'}
+				</span>
+				<span class="text-[10px] leading-none text-muted-foreground">
+					{jump.back ? 'back' : 'out'}
+				</span>
+			</span>
+		{:else}
 			<span class="text-sm text-muted-foreground">No more jumps</span>
-		{/if}
-		{#if j.cold > 0}
-			<span class={pill}><SnowflakeIcon class={mark} />{j.cold} cold</span>
-		{/if}
-		{#if j.hot > 0}
-			<span class={pill}><FlameIcon class={mark} />{j.hot} hot</span>
-		{/if}
-	</span>
+		{/each}
+	</div>
 {/snippet}
 
-{#snippet goal(s: RollSteps, kind: 'roll' | 'crit', testid: string)}
+{#snippet goal(s: RollSteps, away: boolean, kind: 'roll' | 'crit', testid: string)}
 	{@const idle = s.jumps.cold + s.jumps.hot === 0}
 	<div class="flex flex-col gap-1.5 border-l border-border px-4 py-3" data-testid={testid}>
-		{@render jumps(s.jumps, 'md')}
-		{#if s.last}
-			<span class="text-muted-foreground">Fly the last jump home {s.last}.</span>
-		{/if}
+		{@render trail(s.jumps, s.last, away, 'md')}
 		{#if kind === 'roll' && !s.certain}
 			<span class="flex items-start gap-1.5 text-amber-600 dark:text-amber-500">
 				<TriangleAlertIcon class="mt-0.5 size-3.5 shrink-0" />
@@ -170,7 +184,14 @@
 	</div>
 {/snippet}
 
-{#snippet answer(title: string, hint: string, dot: string, b: RollBranch | null, testid: string)}
+{#snippet answer(
+	title: string,
+	hint: string,
+	dot: string,
+	b: RollBranch | null,
+	away: boolean,
+	testid: string,
+)}
 	<div class="col-span-full grid grid-cols-subgrid border-t border-border" data-testid={testid}>
 		<div class="flex flex-col justify-center gap-0.5 px-4 py-3">
 			<span class="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -180,8 +201,8 @@
 			<span class="pl-4 text-muted-foreground">{hint}</span>
 		</div>
 		{#if b}
-			{@render goal(b.roll, 'roll', `${testid}-roll`)}
-			{@render goal(b.crit, 'crit', `${testid}-crit`)}
+			{@render goal(b.roll, away, 'roll', `${testid}-roll`)}
+			{@render goal(b.crit, away, 'crit', `${testid}-crit`)}
 		{:else}
 			<p class="col-span-2 border-l border-border px-4 py-3 text-muted-foreground">
 				It cannot be, after those jumps.
@@ -225,7 +246,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Content
-		class="grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-5xl"
+		class="grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-6xl"
 		data-testid="rolling-dialog"
 	>
 		<Dialog.Header class="px-6 pt-5 pb-4">
@@ -302,7 +323,7 @@
 								<div class="flex flex-col gap-2.5 bg-muted/40 p-4">
 									{@render stepTitle(1, 'Put this through')}
 									<div class="pl-7.5" data-testid="rolling-first">
-										{@render jumps(plan.first, 'lg')}
+										{@render trail(plan.first, null, false, 'lg')}
 									</div>
 									{#if plan.away}
 										<p class="flex items-center gap-1.5 pl-7.5 text-muted-foreground">
@@ -315,7 +336,7 @@
 								<div class="flex flex-col gap-2.5 bg-muted/40 p-4">
 									{@render stepTitle(2, 'Look at the hole. Is it reduced?')}
 									<div
-										class="ml-7.5 grid grid-cols-[13rem_minmax(0,1fr)_minmax(0,1fr)] border border-border bg-background"
+										class="ml-7.5 grid grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)] border border-border bg-background"
 									>
 										<div class="col-span-full grid grid-cols-subgrid">
 											<span></span>
@@ -335,6 +356,7 @@
 											'It is on the small side',
 											'bg-orange-500',
 											plan.reduced,
+											plan.away,
 											'rolling-reduced',
 										)}
 										{@render answer(
@@ -342,6 +364,7 @@
 											'It is on the big side',
 											'bg-muted-foreground/40',
 											plan.fresh,
+											plan.away,
 											'rolling-fresh',
 										)}
 									</div>
@@ -371,8 +394,11 @@
 		>
 			<span class="text-sm font-medium text-foreground">Your rolling ship</span>
 			<label class="flex items-center gap-1.5">
-				<SnowflakeIcon class="size-3.5" />
-				<span>Cold</span>
+				<span
+					class="flex h-6 w-11 items-center justify-center border border-border bg-background text-xs font-medium text-foreground"
+				>
+					Cold
+				</span>
 				<Input
 					class="h-7 w-20 bg-background text-center text-foreground tabular-nums"
 					inputmode="numeric"
@@ -382,8 +408,11 @@
 				/>
 			</label>
 			<label class="flex items-center gap-1.5">
-				<FlameIcon class="size-3.5" />
-				<span>Hot</span>
+				<span
+					class="flex h-6 w-11 items-center justify-center border border-foreground bg-foreground text-xs font-medium text-background"
+				>
+					Hot
+				</span>
 				<Input
 					class="h-7 w-20 bg-background text-center text-foreground tabular-nums"
 					inputmode="numeric"

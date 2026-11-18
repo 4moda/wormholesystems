@@ -263,6 +263,30 @@ export function massClasses(
 		.sort((a, b) => a.totalMass - b.totalMass || (a.maxJump ?? 0) - (b.maxJump ?? 0));
 }
 
+/** One jump of a set: how heavy, and which way. */
+export interface Jump {
+	mass: 'cold' | 'hot';
+	/** Towards home, rather than out to the far side. */
+	back: boolean;
+}
+
+/**
+ * A set of jumps in the order to fly them: the cold ones, then the hot ones, ending on
+ * the mass the last jump has to be. Only that last one matters to the plan; the rest is
+ * put lightest first so that it reads the same every time. `away` says the roller starts
+ * on the far side, which makes the first jump the way home.
+ */
+export function jumpOrder(jumps: Jumps, last: 'cold' | 'hot' | null, away: boolean): Jump[] {
+	if (jumps.cold + jumps.hot === 0) return [];
+	const end = last ?? (jumps.hot > 0 ? 'hot' : 'cold');
+	const masses: Jump['mass'][] = [
+		...Array<'cold'>(jumps.cold - (end === 'cold' ? 1 : 0)).fill('cold'),
+		...Array<'hot'>(jumps.hot - (end === 'hot' ? 1 : 0)).fill('hot'),
+		end,
+	];
+	return masses.map((mass, i) => ({ mass, back: i % 2 === (away ? 0 : 1) }));
+}
+
 /** "2 cold, 2 hot", or "nothing" for no jumps at all. */
 export function describeJumps(jumps: Jumps): string {
 	const parts = [];

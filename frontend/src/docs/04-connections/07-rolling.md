@@ -11,7 +11,7 @@ A hole's real mass is its type's give or take 10%, and the game does not say whi
 - **Reduced** means more than half is gone, so the hole is on the small side.
 - **Not reduced** means it is on the big side.
 
-The table under it gives, for each answer, the jumps **to roll** (close the hole) and **to crit** (leave it open and nearly gone). Every set ends with the roller at home, and none of them can close the hole while the roller is on the far side.
+The table under it gives, for each answer, the jumps **to roll** (close the hole) and **to crit** (leave it open and nearly gone). Every set of jumps is drawn as a row, one box per jump in the order to fly them: filled for hot, outlined for cold, with **out** or **back** under each. Every set ends with the roller at home, and none of them can close the hole while the roller is on the far side.
 
 ## Your ship
 

@@ -14,15 +14,16 @@ test('rolling cheat sheet: steps per hole mass, for the ship typed in', async ({
 	await dialog.getByTestId('rolling-find').fill('c247');
 	const hole = dialog.getByTestId('rolling-class');
 	await expect(dialog.getByRole('tab', { selected: true })).toHaveText('2,000 kt');
-	await expect(hole.getByTestId('rolling-first')).toHaveText(/^\s*2 cold\s*2 hot\s*$/);
-	await expect(hole.getByTestId('rolling-reduced-roll')).toContainText(/2 cold\s*2 hot/);
-	await expect(hole.getByTestId('rolling-fresh-roll')).toContainText('4 hot');
-	await expect(hole.getByTestId('rolling-reduced-crit')).toContainText('4 cold');
+	const flown = (testid: string) => hole.getByTestId(testid).locator('[data-jumps]');
+	await expect(flown('rolling-first')).toHaveAttribute('data-jumps', 'cold cold hot hot');
+	await expect(flown('rolling-reduced-roll')).toHaveAttribute('data-jumps', 'cold cold hot hot');
+	await expect(flown('rolling-fresh-roll')).toHaveAttribute('data-jumps', 'hot hot hot hot');
+	await expect(flown('rolling-reduced-crit')).toHaveAttribute('data-jumps', 'cold cold cold cold');
 
 	// A lighter ship takes more jumps, and is remembered.
 	await dialog.getByTestId('rolling-cold').fill('100');
 	await dialog.getByTestId('rolling-hot').fill('200');
-	await expect(hole.getByTestId('rolling-first')).toHaveText('5 hot');
+	await expect(flown('rolling-first')).toHaveAttribute('data-jumps', 'hot hot hot hot hot');
 	await page.reload();
 	await page.getByTestId('rolling-button').click();
 	await expect(page.getByTestId('rolling-hot')).toHaveValue('200');

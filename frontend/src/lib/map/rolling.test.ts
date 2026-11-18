@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { describeJumps, massClasses, rollPlan, type RollSteps } from './rolling';
+import { describeJumps, jumpOrder, massClasses, rollPlan, type RollSteps } from './rolling';
 
 const GG = 1_000_000;
 /** The battleship the old quick reference chart assumes. */
@@ -130,5 +130,31 @@ describe('massClasses', () => {
 			{ totalMass: 2000, maxJump: 375, codes: ['A239', 'C247'] },
 			{ totalMass: 3300, maxJump: 2000, codes: ['H296'] },
 		]);
+	});
+});
+
+describe('jumpOrder', () => {
+	const flown = (...args: Parameters<typeof jumpOrder>) =>
+		jumpOrder(...args).map((j) => `${j.back ? 'back' : 'out'} ${j.mass}`);
+
+	it('goes out and back, cold before hot', () => {
+		expect(flown({ cold: 2, hot: 2 }, null, false)).toEqual([
+			'out cold',
+			'back cold',
+			'out hot',
+			'back hot',
+		]);
+	});
+
+	it('ends on the mass the last jump has to be', () => {
+		expect(flown({ cold: 1, hot: 1 }, 'cold', false)).toEqual(['out hot', 'back cold']);
+	});
+
+	it('starts with the way home from the far side', () => {
+		expect(flown({ cold: 0, hot: 3 }, null, true)).toEqual(['back hot', 'out hot', 'back hot']);
+	});
+
+	it('is empty for no jumps', () => {
+		expect(jumpOrder({ cold: 0, hot: 0 }, null, false)).toEqual([]);
 	});
 });
