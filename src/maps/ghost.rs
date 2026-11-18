@@ -663,6 +663,10 @@ struct Twin {
 
 /// The ghost's edge that merging it into `target` would duplicate. That happens when the
 /// same jump is mapped twice at once, once as a new system and once as this ghost.
+///
+/// An edge that another signature in the system the ghost hangs off already is, is not
+/// that: two signatures there are two holes, which can lead to the same system, so the
+/// ghost's edge stays a second one beside it.
 async fn twin_of(tx: &mut Tx<'_>, map_id: i64, ghost_id: i64, target: i64) -> Result<Option<Twin>> {
     let row = sqlx::query!(
         r#"select c.id as ghost, d.id as existing
@@ -673,6 +677,13 @@ async fn twin_of(tx: &mut Tx<'_>, map_id: i64, ghost_id: i64, target: i64) -> Re
                 (case when c.from_system = $2 then c.to_system else c.from_system end, $3),
                 ($3, case when c.from_system = $2 then c.to_system else c.from_system end))
            where c.map_id = $1 and $2 in (c.from_system, c.to_system)
+             and not exists (
+                 select 1
+                 from signatures s
+                 join map_solar_systems origin
+                   on origin.id = case when c.from_system = $2 then c.to_system else c.from_system end
+                 where s.map_id = d.map_id and s.connection_id = d.id
+                   and s.solar_system_id = origin.solar_system_id)
            order by c.id, d.id
            limit 1"#,
         map_id,

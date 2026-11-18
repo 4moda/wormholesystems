@@ -236,6 +236,57 @@ async fn a_ghost_for_a_hole_already_mapped_folds_into_it() {
     assert_eq!(ghost_for(&pool, w.map_id, sig).await, ghost);
 }
 
+/// Two holes out of one system can lead to the same place. The edge the first signature
+/// is stays that signature's, and the second gets its own beside it.
+#[tokio::test]
+async fn a_second_hole_to_the_same_system_keeps_its_own_edge() {
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    let home = place(&pool, w.owner, w.map_id, SYS_A).await;
+    ghosting(&pool, w.owner, w.map_id).await;
+    let resolve = |ghost| {
+        resolve_ghost_system(
+            &pool,
+            w.owner,
+            ResolveGhostSystem {
+                map_id: w.map_id,
+                map_solar_system_id: ghost,
+                solar_system_id: Some(SYS_C),
+                ..Default::default()
+            },
+        )
+    };
+
+    let first = scan(&pool, w.owner, w.map_id, SYS_A, "ABC-123").await;
+    let far = resolve(ghost_for(&pool, w.map_id, first).await)
+        .await
+        .unwrap()
+        .id;
+    let second = scan(&pool, w.owner, w.map_id, SYS_A, "DEF-456").await;
+    let ghost = ghost_for(&pool, w.map_id, second).await;
+    assert_eq!(resolve(ghost).await.unwrap().id, far);
+
+    let view = get_map(&pool, w.owner, GetMap { map_id: w.map_id })
+        .await
+        .unwrap();
+    assert_eq!(view.systems.len(), 2, "the ghost is gone");
+    assert_eq!(view.connections.len(), 2, "one edge per hole");
+    for connection in &view.connections {
+        let ends = [connection.from_system, connection.to_system];
+        assert!(ends.contains(&home) && ends.contains(&far));
+    }
+    let sigs = list_signatures(&pool, w.owner, w.map_id).await.unwrap();
+    let edge_of = |pk| sigs.iter().find(|s| s.id == pk).unwrap().connection_id;
+    assert!(edge_of(first).is_some(), "the first hole kept its scan");
+    assert!(edge_of(second).is_some());
+    assert_ne!(edge_of(first), edge_of(second));
+
+    undo(&pool, w.owner, MapIdBody { map_id: w.map_id })
+        .await
+        .unwrap();
+    assert_eq!(ghost_for(&pool, w.map_id, second).await, ghost);
+}
+
 /// Saying where an unmapped hole leads says which class its K162 was all along.
 #[tokio::test]
 async fn resolving_a_hole_names_the_class_its_k162_leads_to() {
