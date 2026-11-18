@@ -66,6 +66,9 @@ pub(super) async fn apply_track_jump(tx: &mut Tx<'_>, cmd: TrackJump) -> Result<
         None => None,
     };
 
+    // The connection this jump went through, if the map has it. One that another signature
+    // in this system already is, is not it: the pilot named a different hole, and two holes
+    // can lead to the same system, so that jump draws its own edge below.
     let existing = sqlx::query_scalar!(
         r#"select c.id from map_connections c
            join map_solar_systems f on f.id = c.from_system
@@ -73,10 +76,18 @@ pub(super) async fn apply_track_jump(tx: &mut Tx<'_>, cmd: TrackJump) -> Result<
            where c.map_id = $1
              and ((f.solar_system_id = $2 and t.solar_system_id = $3)
                   or (f.solar_system_id = $3 and t.solar_system_id = $2))
+             and not exists (
+                 select 1 from signatures s
+                 where s.map_id = c.map_id and s.connection_id = c.id
+                   and s.solar_system_id = $2 and s.id <> $4)
+           order by exists (
+                 select 1 from signatures s where s.id = $4 and s.connection_id = c.id) desc,
+               c.id
            limit 1"#,
         cmd.map_id,
         from_system,
         cmd.to_solar_system_id,
+        cmd.signature_pk,
     )
     .fetch_optional(&mut **tx)
     .await?;
