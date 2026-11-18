@@ -287,6 +287,58 @@ async fn a_second_hole_to_the_same_system_keeps_its_own_edge() {
     assert_eq!(ghost_for(&pool, w.map_id, second).await, ghost);
 }
 
+/// Saying where an unmapped hole leads says which class its K162 was all along.
+#[tokio::test]
+async fn resolving_a_hole_names_the_class_its_k162_leads_to() {
+    use common::catalog::{K162_C1_TO_3, K162_C2, seed_catalog, seed_wormhole_system};
+
+    const C2: i64 = 31_000_002;
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    seed_catalog(&pool).await;
+    seed_wormhole_system(&pool, C2, 2).await;
+    place(&pool, w.owner, w.map_id, SYS_A).await;
+    ghosting(&pool, w.owner, w.map_id).await;
+    let sig = scan(&pool, w.owner, w.map_id, SYS_A, "ABC-123").await;
+    update_signature(
+        &pool,
+        w.owner,
+        UpdateSignature {
+            map_id: w.map_id,
+            signature_pk: sig,
+            signature_type_id: Some(Some(K162_C1_TO_3)),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    let ghost = ghost_for(&pool, w.map_id, sig).await;
+    let type_of = async || {
+        let sigs = list_signatures(&pool, w.owner, w.map_id).await.unwrap();
+        sigs.iter().find(|s| s.id == sig).unwrap().signature_type_id
+    };
+
+    resolve_ghost_system(
+        &pool,
+        w.owner,
+        ResolveGhostSystem {
+            map_id: w.map_id,
+            map_solar_system_id: ghost,
+            solar_system_id: Some(C2),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(type_of().await, Some(K162_C2));
+
+    undo(&pool, w.owner, MapIdBody { map_id: w.map_id })
+        .await
+        .unwrap();
+    assert_eq!(type_of().await, Some(K162_C1_TO_3));
+    assert_eq!(ghost_for(&pool, w.map_id, sig).await, ghost);
+}
+
 #[tokio::test]
 async fn a_ghost_cannot_lead_to_the_system_it_hangs_off() {
     let (pool, _db) = common::db::fresh().await;
