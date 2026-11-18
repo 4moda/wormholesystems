@@ -4,7 +4,7 @@ title: Rolling
 
 # Rolling
 
-The scroll icon in the bar above the map opens the **rolling cheat sheet**: for every mass of wormhole, the jumps that close it or leave it critical with one ship.
+The scroll icon in the bar above the map opens the **rolling cheat sheet**: the jumps that close a wormhole or leave it critical with one ship. Pick the hole's mass from the list on the left, or type its code to find it.
 
 A hole's real mass is its type's give or take 10%, and the game does not say which. So the sheet has you put about half the type's mass through first and then look at the hole:
 
@@ -15,9 +15,9 @@ Each answer has its own jumps **to roll** (close the hole) and **to crit** (leav
 
 ## Your ship
 
-Type in the rolling ship's mass with its propulsion module off (**cold**) and on (**hot**), in kt. The sheet is worked out for that ship and remembers it. It starts with a battleship of 200 and 300 kt.
+At the bottom, type in the rolling ship's mass with its propulsion module off (**cold**) and on (**hot**), in kt. The sheet is worked out for that ship and remembers it. It starts with a battleship of 200 and 300 kt.
 
-Holes the ship does not fit through are listed at the bottom.
+Holes the ship does not fit through are at the end of the list.
 
 ## When it cannot be sure
 

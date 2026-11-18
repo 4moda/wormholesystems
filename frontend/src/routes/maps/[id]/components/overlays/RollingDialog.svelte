@@ -1,18 +1,22 @@
 <script lang="ts">
-	// The rolling cheat sheet: for each mass of wormhole, what to put through first, and what
+	// The rolling cheat sheet: for a mass of wormhole, what to put through first, and what
 	// the hole's answer to "is it reduced?" then calls for. Worked out for the ship typed in
-	// at the top rather than printed for one battleship, so it covers every hole the catalog
-	// knows and whatever is being rolled with.
+	// rather than printed for one battleship, so it covers every hole the catalog knows and
+	// whatever is being rolled with.
+	//
+	// One hole at a time: the masses are a list to pick from, and the plan beside it is the
+	// only thing to read. Sixteen plans on one page is a wall nobody rolls a hole from.
 	import * as v from 'valibot';
 
 	import type { SignatureCatalog } from '$lib/api/types/SignatureCatalog';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { formatKt } from '$lib/map/mass';
+	import { cn } from '$lib/utils';
 	import {
-		describeJumps,
 		massClasses,
 		rollPlan,
+		type Jumps,
 		type RollBranch,
 		type RollSteps,
 	} from '$lib/map/rolling';
@@ -58,174 +62,250 @@
 	});
 
 	const classes = $derived(catalog ? massClasses(catalog.types) : []);
-	const wanted = $derived(find.trim().toUpperCase());
+	const keyOf = (c: { totalMass: number; maxJump: number | null }) => `${c.totalMass}:${c.maxJump}`;
 	const rows = $derived(
-		classes
-			.filter((c) => wanted === '' || c.codes.some((code) => code.includes(wanted)))
-			.map((c) => ({ ...c, plan: ship ? rollPlan(c.totalMass, c.maxJump, ship) : null })),
+		classes.map((c) => ({
+			...c,
+			key: keyOf(c),
+			plan: ship ? rollPlan(c.totalMass, c.maxJump, ship) : null,
+		})),
 	);
-	const rollable = $derived(rows.filter((r) => r.plan !== null));
-	const tooSmall = $derived(rows.filter((r) => r.plan === null));
+
+	const wanted = $derived(find.trim().toUpperCase());
+	// What the ship can roll first; the holes it does not fit through go last, under a line
+	// of their own, so the list starts with what there is a plan for.
+	const matches = $derived(
+		(wanted === '' ? rows : rows.filter((r) => r.codes.some((code) => code.includes(wanted))))
+			.map((r, i) => ({ r, i }))
+			.sort((a, b) => Number(a.r.plan === null) - Number(b.r.plan === null) || a.i - b.i)
+			.map(({ r }) => r),
+	);
+	const firstTooSmall = $derived(ship ? matches.find((r) => r.plan === null)?.key : undefined);
+	/** The mass picked by hand; a search or a first look falls back to the first that fits. */
+	let picked = $state<string | null>(null);
+	const selected = $derived(
+		matches.find((r) => r.key === picked) ??
+			matches.find((r) => r.plan !== null) ??
+			matches[0] ??
+			null,
+	);
 </script>
 
-{#snippet steps(label: string, s: RollSteps, kind: 'roll' | 'crit')}
-	{@const idle = s.jumps.cold + s.jumps.hot === 0}
-	<div>
-		<div class="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">{label}</div>
-		<div class="text-sm text-foreground">
-			{idle ? 'No more jumps' : describeJumps(s.jumps)}
-		</div>
-		{#if s.last}
-			<div class="text-muted-foreground">The last jump home {s.last}.</div>
+{#snippet jumps(j: Jumps, size: 'lg' | 'md')}
+	<span
+		class={cn(
+			'font-heading text-foreground tabular-nums',
+			size === 'lg' ? 'text-2xl' : 'text-base',
+		)}
+	>
+		{#if j.cold + j.hot === 0}
+			No more jumps
+		{:else}
+			{#if j.cold > 0}{j.cold} cold{/if}{#if j.cold > 0 && j.hot > 0}<span
+					class="px-1.5 text-muted-foreground">+</span
+				>{/if}{#if j.hot > 0}{j.hot} hot{/if}
 		{/if}
-		{#if kind === 'roll' && !s.certain}
-			<div class="text-amber-500">
-				{#if idle}
-					Nothing is safe from here. Close it with a light ship.
-				{:else if s.critical}
-					It can stay open, but critical. Close it with a light ship.
-				{:else}
-					It can stay open. Check the hole, then close it with a light ship.
-				{/if}
+	</span>
+{/snippet}
+
+{#snippet goal(label: string, s: RollSteps, kind: 'roll' | 'crit')}
+	{@const idle = s.jumps.cold + s.jumps.hot === 0}
+	<div class="grid grid-cols-[3rem_minmax(0,1fr)] items-baseline gap-x-3 px-3 py-2.5">
+		<span class="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">{label}</span
+		>
+		<div class="flex flex-col gap-0.5">
+			{@render jumps(s.jumps, 'md')}
+			{#if s.last}
+				<span class="text-muted-foreground">Fly the last jump home {s.last}.</span>
+			{/if}
+			{#if kind === 'roll' && !s.certain}
+				<span class="text-amber-500">
+					{#if idle}
+						Nothing more is safe. Close it with a light ship.
+					{:else if s.critical}
+						It can stay open, critical. Close it with a light ship.
+					{:else}
+						It can stay open. Check it, then close it with a light ship.
+					{/if}
+				</span>
+			{:else if kind === 'crit' && !s.certain}
+				<span class="text-muted-foreground">
+					{idle ? 'Any more could close it.' : 'As far as is safe; it may not show critical yet.'}
+				</span>
+			{/if}
+		</div>
+	</div>
+{/snippet}
+
+{#snippet answer(title: string, dot: string, b: RollBranch | null, testid: string)}
+	<div class="flex flex-col border border-border" data-testid={testid}>
+		<div class="flex items-center gap-2 border-b border-border bg-muted/40 px-3 py-1.5">
+			<span class={cn('size-2 rounded-full', dot)}></span>
+			<span class="text-sm font-medium text-foreground">{title}</span>
+		</div>
+		{#if b}
+			<div class="divide-y divide-border/60">
+				{@render goal('Roll', b.roll, 'roll')}
+				{@render goal('Crit', b.crit, 'crit')}
 			</div>
-		{:else if kind === 'crit' && !s.certain}
-			<div class="text-muted-foreground">
-				{idle ? 'Any more could close it.' : 'As far as is safe. It may not show critical yet.'}
-			</div>
+		{:else}
+			<p class="px-3 py-2.5 text-muted-foreground">It cannot be, after those jumps.</p>
 		{/if}
 	</div>
 {/snippet}
 
-{#snippet branch(title: string, b: RollBranch | null, testid: string)}
-	<div class="flex flex-col gap-2 border border-border/60 p-2" data-testid={testid}>
-		<div class="text-xs font-medium text-foreground">{title}</div>
-		{#if b}
-			{@render steps('To roll', b.roll, 'roll')}
-			{@render steps('To crit', b.crit, 'crit')}
-		{:else}
-			<div class="text-muted-foreground">It cannot be, after those jumps.</div>
-		{/if}
+{#snippet step(n: number, title: string)}
+	<div class="flex items-center gap-2">
+		<span
+			class="flex size-5 items-center justify-center border border-border font-mono text-[11px] text-muted-foreground"
+		>
+			{n}
+		</span>
+		<span class="text-sm font-medium text-foreground">{title}</span>
 	</div>
 {/snippet}
 
 <Dialog.Root bind:open>
 	<Dialog.Content
-		class="h-[46rem] max-h-[90vh] w-full grid-rows-[auto_auto_minmax(0,1fr)] sm:max-w-5xl"
+		class="grid-rows-[auto_minmax(0,1fr)_auto] gap-0 p-0 sm:max-w-3xl"
 		data-testid="rolling-dialog"
 	>
-		<Dialog.Header>
-			<Dialog.Title class="font-heading text-xl">Rolling cheat sheet</Dialog.Title>
-			<Dialog.Description class="text-sm">
-				For a hole nothing has gone through yet. A hole's real mass is its type's give or take 10%,
-				so the first jumps put about half through, and whether it then shows reduced says which side
-				of the type's mass it is on. Every set of jumps ends with the roller at home.
+		<Dialog.Header class="border-b border-border px-4 py-3">
+			<Dialog.Title class="font-heading text-lg">Rolling cheat sheet</Dialog.Title>
+			<Dialog.Description class="text-xs">
+				For a hole nothing has gone through yet. Every set of jumps ends with you at home.
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="flex flex-wrap items-end gap-3 border-y border-border/40 py-3">
-			<label class="flex flex-col gap-1">
-				<span class="text-muted-foreground">Ship cold (kt)</span>
-				<Input
-					class="w-28 tabular-nums"
-					inputmode="numeric"
-					bind:value={cold}
-					data-testid="rolling-cold"
-				/>
-			</label>
-			<label class="flex flex-col gap-1">
-				<span class="text-muted-foreground">Ship hot (kt)</span>
-				<Input
-					class="w-28 tabular-nums"
-					inputmode="numeric"
-					bind:value={hot}
-					data-testid="rolling-hot"
-				/>
-			</label>
-			<label class="ml-auto flex flex-col gap-1">
-				<span class="text-muted-foreground">Find a hole</span>
-				<Input
-					class="w-32 uppercase"
-					placeholder="H296"
-					bind:value={find}
-					data-testid="rolling-find"
-				/>
-			</label>
-			{#if !ship}
-				<p class="basis-full text-destructive">
-					Give both masses in kt, the hot one no lighter than the cold one.
-				</p>
-			{/if}
-		</div>
-
-		<div class="-mr-2 overflow-y-auto pr-2">
-			{#if ship}
-				<div class="grid gap-3 lg:grid-cols-2">
-					{#each rollable as row (`${row.totalMass}:${row.maxJump}`)}
-						{@const plan = row.plan!}
-						<section
-							class="flex flex-col gap-2 border border-border bg-card p-3"
-							data-testid="rolling-class"
+		<div class="grid h-[29rem] max-h-[70vh] grid-cols-[13rem_minmax(0,1fr)]">
+			<!-- Which hole: by mass, or by typing its code. -->
+			<div class="flex min-h-0 flex-col border-r border-border">
+				<div class="border-b border-border p-2">
+					<Input
+						class="uppercase placeholder:normal-case"
+						placeholder="Find a hole, e.g. H296"
+						bind:value={find}
+						data-testid="rolling-find"
+					/>
+				</div>
+				<div class="min-h-0 flex-1 overflow-y-auto" data-testid="rolling-masses">
+					{#each matches as row (row.key)}
+						{#if row.key === firstTooSmall}
+							<div
+								class="mt-1 border-t border-border px-3 pt-2 pb-1 font-mono text-[10px] tracking-wider text-muted-foreground uppercase"
+							>
+								Too small for this ship
+							</div>
+						{/if}
+						<button
+							type="button"
+							class={cn(
+								'flex w-full items-baseline justify-between gap-2 px-3 py-1.5 text-left transition-colors',
+								row.key === selected?.key
+									? 'bg-accent text-foreground'
+									: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+								row.plan === null && 'opacity-50',
+							)}
+							aria-pressed={row.key === selected?.key}
+							onclick={() => (picked = row.key)}
 						>
-							<header class="flex items-baseline justify-between gap-3">
-								<h3 class="font-heading text-base text-foreground tabular-nums">
-									{formatKt(row.totalMass)} kt
+							<span class="text-sm tabular-nums">{formatKt(row.totalMass)} kt</span>
+							<span class="text-[11px] tabular-nums">
+								{row.maxJump === null ? '' : `${formatKt(row.maxJump)} a jump`}
+							</span>
+						</button>
+					{:else}
+						<p class="px-3 py-2 text-muted-foreground">
+							{catalog ? 'No hole called that.' : 'Loading…'}
+						</p>
+					{/each}
+				</div>
+			</div>
+
+			<!-- The one plan. -->
+			<div class="min-h-0 overflow-y-auto p-4">
+				{#if !ship}
+					<p class="text-destructive">
+						Give the ship's cold and hot mass below, the hot one no lighter than the cold one.
+					</p>
+				{:else if selected}
+					<div class="flex flex-col gap-4" data-testid="rolling-class">
+						<div>
+							<div class="flex items-baseline justify-between gap-3">
+								<h3 class="font-heading text-xl text-foreground tabular-nums">
+									{formatKt(selected.totalMass)} kt
 								</h3>
-								{#if row.maxJump !== null}
+								{#if selected.maxJump !== null}
 									<span class="text-muted-foreground tabular-nums">
-										{formatKt(row.maxJump)} kt a jump
+										{formatKt(selected.maxJump)} kt a jump
 									</span>
 								{/if}
-							</header>
-							<p class="font-mono text-[11px] leading-relaxed text-muted-foreground">
-								{#each row.codes as code (code)}
+							</div>
+							<p class="mt-1 font-mono text-[11px] leading-relaxed text-muted-foreground">
+								{#each selected.codes as code (code)}
 									<span class={wanted !== '' && code.includes(wanted) ? 'text-foreground' : ''}>
 										{code}
 									</span>{' '}
 								{/each}
 							</p>
-							<div>
-								<div class="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-									First
-								</div>
-								<div class="text-sm text-foreground" data-testid="rolling-first">
-									{describeJumps(plan.first)}
+						</div>
+
+						{#if selected.plan}
+							{@const plan = selected.plan}
+							<div class="flex flex-col gap-2">
+								{@render step(1, 'Put through')}
+								<div class="pl-7" data-testid="rolling-first">
+									{@render jumps(plan.first, 'lg')}
 								</div>
 								{#if plan.away}
-									<div class="text-muted-foreground">
+									<p class="pl-7 text-muted-foreground">
 										That leaves you on the far side. The jumps below start with the way home.
-									</div>
+									</p>
 								{/if}
 							</div>
-							<div class="text-xs text-foreground italic">Is the hole reduced?</div>
-							<div class="grid grid-cols-2 gap-2">
-								{@render branch('Yes', plan.reduced, 'rolling-reduced')}
-								{@render branch('No', plan.fresh, 'rolling-fresh')}
-							</div>
-						</section>
-					{/each}
-				</div>
 
-				{#if tooSmall.length > 0}
-					<div
-						class="mt-4 flex flex-col gap-1 text-muted-foreground"
-						data-testid="rolling-too-small"
-					>
-						<div class="text-xs font-medium text-foreground">Too small for this ship</div>
-						{#each tooSmall as row (`${row.totalMass}:${row.maxJump}`)}
-							<p>
-								<span class="tabular-nums">
-									{formatKt(row.totalMass)} kt, {formatKt(row.maxJump ?? 0)} kt a jump:
-								</span>
-								<span class="font-mono text-[11px]">{row.codes.join(' ')}</span>
+							<div class="flex flex-col gap-2">
+								{@render step(2, 'Is the hole reduced?')}
+								<div class="grid grid-cols-2 gap-3 pl-7">
+									{@render answer('Reduced', 'bg-orange-500', plan.reduced, 'rolling-reduced')}
+									{@render answer(
+										'Not reduced',
+										'bg-muted-foreground/40',
+										plan.fresh,
+										'rolling-fresh',
+									)}
+								</div>
+							</div>
+						{:else}
+							<p class="text-muted-foreground" data-testid="rolling-too-small">
+								Too small for this ship: it lets {formatKt(selected.maxJump ?? 0)} kt through at a time.
 							</p>
-						{/each}
+						{/if}
 					</div>
 				{/if}
+			</div>
+		</div>
 
-				{#if catalog && rows.length === 0}
-					<p class="text-muted-foreground">No hole called that.</p>
-				{/if}
-			{/if}
+		<div
+			class="flex flex-wrap items-center gap-2 border-t border-border bg-muted/30 px-4 py-2 text-muted-foreground"
+		>
+			<span>Rolling with a ship of</span>
+			<Input
+				class="w-16 text-center tabular-nums"
+				inputmode="numeric"
+				aria-label="Ship mass cold, in kt"
+				bind:value={cold}
+				data-testid="rolling-cold"
+			/>
+			<span>kt cold and</span>
+			<Input
+				class="w-16 text-center tabular-nums"
+				inputmode="numeric"
+				aria-label="Ship mass hot, in kt"
+				bind:value={hot}
+				data-testid="rolling-hot"
+			/>
+			<span>kt hot.</span>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
