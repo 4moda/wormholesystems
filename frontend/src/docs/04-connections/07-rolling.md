@@ -17,7 +17,7 @@ The table under it gives, for each answer, the jumps **to roll** (close the hole
 
 At the bottom, type in the rolling ship's mass with its propulsion module off (**cold**) and on (**hot**), in kt. The sheet is worked out for that ship and remembers it. It starts with a battleship of 200 and 300 kt.
 
-Masses the ship does not fit through are the greyed tabs at the end.
+At the top of each tab is the mass with its holes by jump limit. Holes the ship does not fit through are struck out there, and a mass it fits through none of is a greyed tab at the end.
 
 ## When it cannot be sure
 

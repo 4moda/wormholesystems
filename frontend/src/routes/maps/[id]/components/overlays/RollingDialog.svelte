@@ -119,6 +119,13 @@
 			(section) => wanted === '' || section.limits.some((l) => l.codes.some(hit)),
 		),
 	);
+	const planned = $derived(sections.filter((section) => section.plan !== null));
+	/** Every jump limit of the mass, widest first, and whether the ship fits through it. */
+	const limits = $derived(
+		(selected?.sections ?? [])
+			.flatMap((section) => section.limits.map((l) => ({ ...l, fits: section.plan !== null })))
+			.sort((a, b) => (b.maxJump ?? Infinity) - (a.maxJump ?? Infinity)),
+	);
 	const nothingFound = $derived(wanted !== '' && !groups.some((g) => g.codes.some(hit)));
 </script>
 
@@ -211,25 +218,68 @@
 	</div>
 {/snippet}
 
-{#snippet holes(section: Section)}
-	<div class="flex flex-col gap-1">
-		{#each section.limits as limit (limit.maxJump)}
-			<p class="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-				<span class="mr-1 text-muted-foreground tabular-nums">
-					{limit.maxJump === null ? 'Any size' : `${formatKt(limit.maxJump)} kt a jump`}
-				</span>
-				{#each limit.codes as code (code)}
-					<span
-						class={cn(
-							'font-mono text-[11px]',
-							hit(code) ? 'bg-foreground px-1 text-background' : 'text-foreground/80',
-						)}
-					>
-						{code}
+<!-- What the tab is: the mass, and the holes of that mass by how much each lets through
+     at a time. A limit the ship is too heavy for is part of that table, marked as such,
+     since it says which holes the plan below is not for. -->
+{#snippet about(group: NonNullable<typeof selected>)}
+	<div class="grid grid-cols-[14rem_minmax(0,1fr)] border border-border">
+		<div class="flex flex-col justify-center gap-1 border-r border-border bg-muted/40 px-4 py-3">
+			<span class="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+				Total mass
+			</span>
+			<span class="font-heading text-3xl leading-none text-foreground tabular-nums">
+				{formatKt(group.totalMass)} kt
+			</span>
+			<span class="text-muted-foreground tabular-nums">
+				{formatKt(group.totalMass * 0.9)} to {formatKt(group.totalMass * 1.1)} in game
+			</span>
+		</div>
+		<div class="grid grid-cols-[11rem_minmax(0,1fr)] content-center" data-testid="rolling-holes">
+			<span
+				class="px-4 pt-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
+			>
+				Jump limit
+			</span>
+			<span
+				class="px-4 pt-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
+			>
+				Holes
+			</span>
+			{#each limits as limit (limit.maxJump)}
+				<div
+					class={cn(
+						'col-span-full grid grid-cols-subgrid items-baseline border-t border-border/60 py-1.5',
+						!limit.fits && 'text-muted-foreground',
+					)}
+					data-fits={limit.fits}
+				>
+					<span class="flex flex-col px-4 tabular-nums">
+						<span class={limit.fits ? 'text-sm text-foreground' : 'text-sm'}>
+							{limit.maxJump === null ? 'Any' : `${formatKt(limit.maxJump)} kt`}
+						</span>
+						{#if !limit.fits}
+							<span class="text-[11px]">too small for this ship</span>
+						{/if}
 					</span>
-				{/each}
-			</p>
-		{/each}
+					<span class="flex flex-wrap gap-1 px-4">
+						{#each limit.codes as code (code)}
+							<span
+								class={cn(
+									'px-1.5 py-0.5 font-mono text-[11px]',
+									hit(code)
+										? 'bg-foreground text-background'
+										: limit.fits
+											? 'bg-muted text-foreground'
+											: 'bg-muted/50 line-through decoration-muted-foreground/50',
+								)}
+							>
+								{code}
+							</span>
+						{/each}
+					</span>
+				</div>
+			{/each}
+		</div>
 	</div>
 {/snippet}
 
@@ -294,7 +344,7 @@
 			</div>
 		</div>
 
-		<div class="h-[34rem] max-h-[70vh] overflow-y-auto px-6 py-6">
+		<div class="h-[38rem] max-h-[72vh] overflow-y-auto px-6 py-5">
 			{#if !ship}
 				<p class="text-destructive">
 					Give the ship's cold and hot mass below, the hot one no lighter than the cold one.
@@ -302,88 +352,81 @@
 			{:else if nothingFound}
 				<p class="text-muted-foreground" data-testid="rolling-none">No hole called that.</p>
 			{:else if selected}
-				<div class="flex flex-col gap-8" data-testid="rolling-class">
-					{#each sections as section, index (index)}
-						{#if section.plan}
-							{@const plan = section.plan}
-							<section class="flex flex-col gap-5" data-testid="rolling-plan">
-								<div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
-									<div class="flex flex-col gap-1">
-										<h3 class="font-heading text-3xl leading-none text-foreground tabular-nums">
-											{formatKt(selected.totalMass)} kt
-										</h3>
-										<span class="text-muted-foreground">
-											somewhere between {formatKt(selected.totalMass * 0.9)} and
-											{formatKt(selected.totalMass * 1.1)}
+				<div class="flex flex-col gap-5" data-testid="rolling-class">
+					{@render about(selected)}
+
+					{#each planned as section, index (index)}
+						{@const plan = section.plan!}
+						<section class="flex flex-col gap-5" data-testid="rolling-plan">
+							{#if planned.length > 1}
+								<h4 class="text-sm font-medium text-foreground">
+									For the holes that let
+									{section.limits
+										.map((l) => (l.maxJump === null ? 'anything' : `${formatKt(l.maxJump)} kt`))
+										.join(' or ')} through
+								</h4>
+							{/if}
+
+							<div class="flex flex-col gap-2.5 bg-muted/40 p-4">
+								{@render stepTitle(1, 'Put this through')}
+								<div class="pl-7.5" data-testid="rolling-first">
+									{@render trail(plan.first, null, false, 'lg')}
+								</div>
+								{#if plan.away}
+									<p class="flex items-center gap-1.5 pl-7.5 text-muted-foreground">
+										<Undo2Icon class="size-3.5 shrink-0" />
+										That leaves you on the far side. The jumps below start with the way home.
+									</p>
+								{/if}
+							</div>
+
+							<div class="flex flex-col gap-2.5 bg-muted/40 p-4">
+								{@render stepTitle(2, 'Look at the hole. Is it reduced?')}
+								<div
+									class="ml-7.5 grid grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)] border border-border bg-background"
+								>
+									<div class="col-span-full grid grid-cols-subgrid">
+										<span></span>
+										<span
+											class="border-l border-border px-4 py-2 text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
+										>
+											To roll it
+										</span>
+										<span
+											class="border-l border-border px-4 py-2 text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
+										>
+											To crit it
 										</span>
 									</div>
-									{@render holes(section)}
+									{@render answer(
+										'Reduced',
+										'It is on the small side',
+										'bg-orange-500',
+										plan.reduced,
+										plan.away,
+										'rolling-reduced',
+									)}
+									{@render answer(
+										'Not reduced',
+										'It is on the big side',
+										'bg-muted-foreground/40',
+										plan.fresh,
+										plan.away,
+										'rolling-fresh',
+									)}
 								</div>
-
-								<div class="flex flex-col gap-2.5 bg-muted/40 p-4">
-									{@render stepTitle(1, 'Put this through')}
-									<div class="pl-7.5" data-testid="rolling-first">
-										{@render trail(plan.first, null, false, 'lg')}
-									</div>
-									{#if plan.away}
-										<p class="flex items-center gap-1.5 pl-7.5 text-muted-foreground">
-											<Undo2Icon class="size-3.5 shrink-0" />
-											That leaves you on the far side. The jumps below start with the way home.
-										</p>
-									{/if}
-								</div>
-
-								<div class="flex flex-col gap-2.5 bg-muted/40 p-4">
-									{@render stepTitle(2, 'Look at the hole. Is it reduced?')}
-									<div
-										class="ml-7.5 grid grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)] border border-border bg-background"
-									>
-										<div class="col-span-full grid grid-cols-subgrid">
-											<span></span>
-											<span
-												class="border-l border-border px-4 py-2 text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
-											>
-												To roll it
-											</span>
-											<span
-												class="border-l border-border px-4 py-2 text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
-											>
-												To crit it
-											</span>
-										</div>
-										{@render answer(
-											'Reduced',
-											'It is on the small side',
-											'bg-orange-500',
-											plan.reduced,
-											plan.away,
-											'rolling-reduced',
-										)}
-										{@render answer(
-											'Not reduced',
-											'It is on the big side',
-											'bg-muted-foreground/40',
-											plan.fresh,
-											plan.away,
-											'rolling-fresh',
-										)}
-									</div>
-								</div>
-							</section>
-						{:else}
-							<section
-								class="flex flex-col gap-2 border-t border-border pt-4 first:border-t-0 first:pt-0"
-								data-testid="rolling-too-small"
-							>
-								{#if index === 0}
-									<h3 class="font-heading text-3xl leading-none text-foreground tabular-nums">
-										{formatKt(selected.totalMass)} kt
-									</h3>
-								{/if}
-								<span class="text-sm font-medium text-foreground">Too small for this ship</span>
-								{@render holes(section)}
-							</section>
-						{/if}
+							</div>
+						</section>
+					{:else}
+						<p
+							class="bg-muted/40 p-4 text-sm text-muted-foreground"
+							data-testid="rolling-too-small"
+						>
+							{wanted === ''
+								? 'This ship is too heavy for every hole of this mass.'
+								: 'This ship is too heavy for that hole.'}
+							Try a lighter one below.
+						</p>
 					{/each}
 				</div>
 			{/if}

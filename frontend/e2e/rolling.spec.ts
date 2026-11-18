@@ -31,7 +31,10 @@ test('rolling cheat sheet: steps per hole mass, for the ship typed in', async ({
 	// A frigate hole has no plan for it, and a tab takes the search back off.
 	await page.getByTestId('rolling-find').fill('e004');
 	await expect(page.getByTestId('rolling-plan')).toHaveCount(0);
-	await expect(page.getByTestId('rolling-too-small')).toContainText('E004');
+	await expect(page.getByTestId('rolling-too-small')).toBeVisible();
+	await expect(page.getByTestId('rolling-holes').locator('[data-fits=false]')).toContainText(
+		'E004',
+	);
 	await page.getByRole('tab', { name: '3,300 kt' }).click();
 	await expect(page.getByTestId('rolling-find')).toHaveValue('');
 	await expect(page.getByTestId('rolling-plan')).toHaveCount(1);
