@@ -266,6 +266,46 @@ async fn jumping_a_connection_that_is_already_mapped_only_links_the_signature() 
     );
 }
 
+/// Two holes out of one system to the same place: the jump through the second names a
+/// different signature than the one the mapped connection is, so it draws its own.
+#[tokio::test]
+async fn jumping_a_second_hole_to_the_same_system_draws_its_own_connection() {
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    let a = place_at(&pool, w.owner, w.map_id, SYS_A, 0.0).await;
+    let first = scan(&pool, w.owner, w.map_id, SYS_A, "ABC-123").await;
+    let second = scan(&pool, w.owner, w.map_id, SYS_A, "DEF-456").await;
+    let through = |signature| TrackJump {
+        signature_pk: Some(signature),
+        ..jump(w.map_id, a, SYS_B)
+    };
+    track_jump(&pool, w.owner, through(first)).await.unwrap();
+    track_jump(&pool, w.owner, through(second)).await.unwrap();
+
+    assert_eq!(connections(&pool, w.owner, w.map_id).await, 2);
+    assert_eq!(systems(&pool, w.owner, w.map_id).await.len(), 2);
+    let sigs = list_signatures(&pool, w.owner, w.map_id).await.unwrap();
+    let edge_of = |pk| sigs.iter().find(|s| s.id == pk).unwrap().connection_id;
+    assert!(
+        edge_of(first).is_some(),
+        "the first hole kept its signature"
+    );
+    assert!(edge_of(second).is_some());
+    assert_ne!(edge_of(first), edge_of(second));
+
+    // Flying either again changes nothing: each signature already is its connection.
+    track_jump(&pool, w.owner, through(second)).await.unwrap();
+    track_jump(&pool, w.owner, through(first)).await.unwrap();
+    assert_eq!(connections(&pool, w.owner, w.map_id).await, 2);
+    let again = list_signatures(&pool, w.owner, w.map_id).await.unwrap();
+    for pk in [first, second] {
+        assert_eq!(
+            again.iter().find(|s| s.id == pk).unwrap().connection_id,
+            edge_of(pk)
+        );
+    }
+}
+
 #[tokio::test]
 async fn flying_a_stargate_builds_nothing() {
     let (pool, _db) = common::db::fresh().await;
