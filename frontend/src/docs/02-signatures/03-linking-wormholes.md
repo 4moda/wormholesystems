@@ -18,4 +18,5 @@ A connection takes **one signature per side**: the signature is the hole, so two
 
 - The connection shows its real signature ID, matching your scanner.
 - When a system has several wormholes, each one maps to a known link — no ambiguity.
+- A K162 typed as a range (C1-3 or C4-5) becomes the exact class once its connection leads to a system on the map, and the type list only offers what can lead there.
 - A linked wormhole carries the connection's [lifetime](/documentation/connections/lifetime), [mass](/documentation/connections/mass), and [ship-size](/documentation/connections/ship-size) status, all describing the same physical hole.

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseScan as parseWith, spawnsAt, typeById, typesForCategory } from './signatures';
+import {
+	parseScan as parseWith,
+	spawnsAt,
+	typeById,
+	typesForCategory,
+	typesLeadingTo,
+} from './signatures';
 import type { SignatureCatalog } from '$lib/api/types/SignatureCatalog';
 import type { SignatureTypeInfo } from '$lib/api/types/SignatureTypeInfo';
 import translations from '$lib/signatures/translations.json';
@@ -440,5 +446,36 @@ describe('typesForCategory', () => {
 
 	it('lists everything without a location', () => {
 		expect(names(4, null)).toEqual(['Frontier Barracks', 'Sansha Haven']);
+	});
+});
+
+describe('typesLeadingTo', () => {
+	const hole = (id: number, signature: string, target_class: number | null) =>
+		type({
+			id,
+			name: `${signature} ${target_class}`,
+			signature,
+			signature_category_id: 1,
+			target_class,
+		});
+	const types = [
+		hole(1, 'K162', null),
+		hole(2, 'K162', 2),
+		hole(3, 'K162', 101),
+		hole(4, 'K162', 5),
+		hole(5, 'K162', 102),
+		hole(6, 'C729', 103),
+	];
+	const ids = (targetClass: number) => typesLeadingTo(types, targetClass).map((t) => t.id);
+
+	it('leaves the group out once the class has a type of its own', () => {
+		expect(ids(2)).toEqual([2]);
+		expect(ids(5)).toEqual([4]);
+	});
+
+	it('keeps the group where nothing names the class', () => {
+		// No "K162 to C4" here, and no C729 per kind of known space.
+		expect(ids(4)).toEqual([5]);
+		expect(ids(8)).toEqual([6]);
 	});
 });

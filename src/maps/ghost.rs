@@ -466,7 +466,8 @@ pub(super) async fn apply_resolve_ghost_system(
         Some(target) => twin_of(tx, cmd.map_id, cmd.map_solar_system_id, target).await?,
         None => None,
     };
-    let (undo, events) = carry_details(tx, &cmd, surviving, twin.map(|t| t.existing)).await?;
+    let (mut undo, mut events) =
+        carry_details(tx, &cmd, surviving, twin.map(|t| t.existing)).await?;
 
     let effect = if let (Some(target), Some(twin)) = (existing, twin) {
         fold(tx, cmd.map_id, cmd.map_solar_system_id, target, twin, &name).await
@@ -500,6 +501,16 @@ pub(super) async fn apply_resolve_ghost_system(
             map_solar_system_id: cmd.map_solar_system_id,
         }))
     }?;
+
+    // Where the hole leads is known now, which can say more than its signature's type did.
+    let (retyped, announced) = super::signatures::narrow_types(
+        tx,
+        cmd.map_id,
+        super::signatures::Narrow::Placement(surviving),
+    )
+    .await?;
+    undo.extend(retyped);
+    events.extend(announced);
 
     Ok(with_undo_steps(cmd.map_id, undo, effect).emit_all(events))
 }
