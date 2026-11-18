@@ -15,8 +15,8 @@ test('rolling cheat sheet: steps per hole mass, for the ship typed in', async ({
 	const hole = dialog.getByTestId('rolling-class');
 	await expect(dialog.getByTestId('rolling-masses').getByRole('button')).toHaveCount(1);
 	await expect(hole).toContainText('2,000 kt');
-	await expect(hole.getByTestId('rolling-first')).toHaveText(/^2 cold\s*\+\s*2 hot$/);
-	await expect(hole.getByTestId('rolling-reduced')).toContainText(/2 cold\s*\+\s*2 hot/);
+	await expect(hole.getByTestId('rolling-first')).toHaveText(/^\s*2 cold\s+2 hot\s*$/);
+	await expect(hole.getByTestId('rolling-reduced')).toContainText(/2 cold\s+2 hot/);
 	await expect(hole.getByTestId('rolling-fresh')).toContainText('4 hot');
 
 	// A lighter ship takes more jumps, and is remembered.
