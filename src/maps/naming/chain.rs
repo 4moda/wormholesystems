@@ -19,6 +19,10 @@ pub const DEFAULT_IGNORED_ALIAS: &str = "HOME";
 /// A-Z less H, L, N and P: those are reserved for k-space exits.
 pub(super) const WORMHOLE_LETTERS: &[u8] = b"ABCDEFGIJKMOQRSTUVWXYZ";
 
+/// What the numeric scheme counts a system's holes in: `1` to `9`, then letters. Every hole
+/// is one character, so `110` cannot be read as both the tenth hole of `1` and a hole of `11`.
+const NUMERIC_DIGITS: &[u8] = b"123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Chain;
 
@@ -167,42 +171,25 @@ pub fn guess_next_alias(
                 .collect();
             return format!("{marker}{}", lowest_free(&used));
         }
-        // Only aliases one character longer count, so k-space exits (`AH1`) and
-        // grandchildren (`ABA`) are not mistaken for direct children.
-        let used: HashSet<usize> = known
-            .iter()
-            .filter(|a| a.len() == prefix.len() + 1 && a.starts_with(&prefix))
-            .filter_map(|a| {
-                WORMHOLE_LETTERS
-                    .iter()
-                    .position(|&l| l == a.as_bytes()[prefix.len()])
-            })
-            .collect();
-        let index = (0..=used.len()).find(|i| !used.contains(i)).unwrap_or(0);
-        // Past 22 direct children the sequence repeats rather than blocking the jump.
-        let letter = char::from(WORMHOLE_LETTERS[index.min(WORMHOLE_LETTERS.len() - 1)]);
-        return format!("{prefix}{letter}");
+        // K-space exits (`AH1`) are longer than a direct child, so they are not counted.
+        return next_child(&prefix, &known, WORMHOLE_LETTERS);
     }
+    next_child(&prefix, &known, NUMERIC_DIGITS)
+}
 
-    let numeric: Vec<&String> = known
+/// `prefix` plus the first of `digits` no direct child has taken. A child is exactly one
+/// character longer than its parent, so a grandchild (`ABA`, `121`) is not mistaken for one.
+/// Once every digit is taken the last one repeats rather than blocking the jump.
+fn next_child(prefix: &str, known: &[String], digits: &[u8]) -> String {
+    let used: HashSet<usize> = known
         .iter()
-        .filter(|a| {
-            a.len() > prefix.len()
-                && a.starts_with(&prefix)
-                && a[prefix.len()..].bytes().all(|b| b.is_ascii_digit())
-        })
+        .filter(|a| a.len() == prefix.len() + 1 && a.starts_with(prefix))
+        .filter_map(|a| digits.iter().position(|&d| d == a.as_bytes()[prefix.len()]))
         .collect();
-    // Drop grandchildren: `121` extends `12`, which itself extends the prefix.
-    let used: HashSet<u32> = numeric
-        .iter()
-        .filter(|a| {
-            !numeric
-                .iter()
-                .any(|o| o != *a && o.len() < a.len() && a.starts_with(o.as_str()))
-        })
-        .filter_map(|a| a[prefix.len()..].parse().ok())
-        .collect();
-    format!("{prefix}{}", lowest_free(&used))
+    let index = (0..digits.len())
+        .find(|i| !used.contains(i))
+        .unwrap_or(digits.len() - 1);
+    format!("{prefix}{}", char::from(digits[index]))
 }
 
 /// Whether naming `destination` describes the way back up the chain. Chain aliases extend
@@ -376,6 +363,19 @@ mod tests {
     #[test]
     fn numeric_does_not_mistake_a_grandchild_for_a_child() {
         assert_eq!(numeric(Some("1"), &["1", "11", "111"]), "12");
+    }
+
+    #[test]
+    fn numeric_goes_on_in_letters_past_nine() {
+        let nine = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+        assert_eq!(numeric(None, &nine), "A");
+        let mut ten = nine.to_vec();
+        ten.push("a");
+        assert_eq!(numeric(None, &ten), "B");
+        assert_eq!(numeric(Some("A"), &ten), "A1");
+        // The tenth hole of `1`, which used to come out as `110`.
+        let deep = ["1", "11", "12", "13", "14", "15", "16", "17", "18", "19"];
+        assert_eq!(numeric(Some("1"), &deep), "1A");
     }
 
     #[test]
