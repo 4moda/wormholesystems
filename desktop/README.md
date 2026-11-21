@@ -54,7 +54,8 @@ The hole keys wait until a jump's signature is picked.
 Closing the window keeps the app running in the tray, overlay and keys included. Click the
 tray icon to open the window again; Quit is in its menu. On Linux that takes a
 StatusNotifier tray (Waybar, KDE, GNOME with the AppIndicator extension); without one,
-closing the window quits.
+closing the window quits. Starting the app while it runs opens that window too, rather
+than a second copy.
 
 Sign in with a personal access token from Settings, Tokens on the website. Settings are
 kept in `wormholesystems/desktop.toml` in the system's config folder. One that does not
