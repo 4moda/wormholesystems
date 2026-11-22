@@ -37,6 +37,7 @@
 		onsavealias,
 		draggable = true,
 		signatureId = null,
+		destClass = null,
 	}: {
 		node: MapSystemView;
 		nodeH: number;
@@ -60,6 +61,8 @@
 		editable?: boolean;
 		/** The scanner id an unmapped hole is known by, until it has a system. */
 		signatureId?: string | null;
+		/** Where that signature's type says the hole leads, when it says. */
+		destClass?: number | null;
 		onmenu: (ev: MouseEvent) => void;
 		onsavealias: (alias: string | null, occupier: string | null) => void;
 	} = $props();
@@ -155,7 +158,7 @@
 
 	<div class="flex min-w-0 items-center gap-1">
 		<ClassBadge
-			classId={mapped?.wormhole_class_id ?? null}
+			classId={mapped ? mapped.wormhole_class_id : destClass}
 			security={mapped?.security_status ?? null}
 			class="shrink-0 font-medium"
 		/>
