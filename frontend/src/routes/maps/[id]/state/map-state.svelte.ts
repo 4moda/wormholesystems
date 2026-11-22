@@ -29,7 +29,7 @@ import {
 	treeShapeKey,
 } from '$lib/map/positions';
 import { routeOrigin } from '$lib/routing/origin';
-import { ghostSignatureIds } from '$lib/map/ghosts';
+import { ghostSignatures } from '$lib/map/ghosts';
 import { layoutMode } from '$lib/map/layout-mode';
 import { orphanedSystems } from '$lib/map/orphans';
 import type { MapAction, RunAction } from '$lib/map/actions';
@@ -262,7 +262,7 @@ export class MapState {
 	});
 
 	ghostSignatures = $derived.by(() =>
-		ghostSignatureIds(this.systemsView, this.connectionsView, this.queries.signatures.data ?? []),
+		ghostSignatures(this.systemsView, this.connectionsView, this.queries.signatures.data ?? []),
 	);
 
 	/** Which connections exist and what they join; a status change leaves it equal. */
