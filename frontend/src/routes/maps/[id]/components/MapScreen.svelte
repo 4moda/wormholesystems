@@ -5,6 +5,7 @@
 	// keeps interaction state.
 	import { createQuery } from '@tanstack/svelte-query';
 	import { q } from '$lib/api/queries';
+	import { copyText } from '$lib/clipboard';
 	import { typeById } from '$lib/map/signatures';
 	import { solarSystemId } from '$lib/map/system';
 	import { tickingMs } from '$lib/now.svelte';
@@ -115,6 +116,18 @@
 		if ((ev.key === 'Delete' || ev.key === 'Backspace') && map.selected.size > 0) {
 			ev.preventDefault();
 			map.removeSelection();
+		}
+		// Ctrl+C on the map copies the active system's name, unless text is selected: that
+		// copy is the browser's.
+		const active = map.activeSystem;
+		if (
+			ev.key === 'c' &&
+			(ev.metaKey || ev.ctrlKey) &&
+			active?.kind === 'system' &&
+			!window.getSelection()?.toString()
+		) {
+			ev.preventDefault();
+			void copyText(active.name, { success: 'System name copied' });
 		}
 	}
 
