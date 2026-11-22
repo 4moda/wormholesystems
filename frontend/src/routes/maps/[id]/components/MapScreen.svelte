@@ -3,6 +3,7 @@
 	// Every mutation publishes a MapEvent server-side and the WS triggers a refetch; pan, zoom
 	// and selection live outside the fetched data and nodes are keyed by id, so a refetch
 	// keeps interaction state.
+	import { copyText } from '$lib/clipboard';
 	import { solarSystemId } from '$lib/map/system';
 	import { tickingMs } from '$lib/now.svelte';
 	import { syncDeepLink } from '../state/deep-link.svelte';
@@ -112,6 +113,18 @@
 		if ((ev.key === 'Delete' || ev.key === 'Backspace') && map.selected.size > 0) {
 			ev.preventDefault();
 			map.removeSelection();
+		}
+		// Ctrl+C on the map copies the active system's name, unless text is selected: that
+		// copy is the browser's.
+		const active = map.activeSystem;
+		if (
+			ev.key === 'c' &&
+			(ev.metaKey || ev.ctrlKey) &&
+			active?.kind === 'system' &&
+			!window.getSelection()?.toString()
+		) {
+			ev.preventDefault();
+			void copyText(active.name, { success: 'System name copied' });
 		}
 	}
 
