@@ -62,17 +62,52 @@ async function pageSession(page: Page): Promise<string> {
 }
 
 /**
+ * A menu animates in, and an action on something still moving is not just late. Playwright
+ * retries it, and from the third try on it scrolls the page to dodge whatever might be in
+ * the way. A map page scrolls, and a canvas menu is anchored to the viewport: it snaps
+ * back after the scroll, out from under the pointer, and a submenu opened by hovering
+ * closes half a second later with the test still reaching for it. On a busy runner that
+ * half second is not enough.
+ *
+ * Without the animation no menu is caught moving, so nothing is retried. Menus only: a
+ * popover or a dialog focuses a field as it opens, and the time its animation takes is
+ * what lets that happen before a test types.
+ *
+ * Added once the page is hydrated, since a head it has yet to take over is not ours to
+ * add to.
+ */
+async function stillMenus(page: Page) {
+	await page.evaluate(() => {
+		if (document.getElementById('e2e-still-menus')) return;
+		const style = document.createElement('style');
+		style.id = 'e2e-still-menus';
+		style.textContent =
+			'[role="menu"] { animation-duration: 0s !important; animation-delay: 0s !important; }';
+		document.head.append(style);
+	});
+}
+
+/**
  * Hydrated, and on a map page past the loader: it holds until the graph and the panel
  * arrangement have both arrived, or says why the map cannot be shown.
+ *
+ * A map that is shown also has its socket up by then. The page is rendered from what the
+ * server read, and only a reconnect refetches: a change made between that read and the
+ * socket opening is never heard of, so a test that arranges something right after
+ * navigating would wait for it for ever.
  */
 async function settled(page: Page) {
 	await page.waitForSelector('html[data-hydrated="true"]');
+	await stillMenus(page);
 	// A map's own page, under its slug (`/maps/home-chain-42`) or a bare id, and not one of
 	// its settings pages.
 	if (/^\/maps\/(?:[^/]+-)?\d+$/.test(new URL(page.url()).pathname)) {
-		await page.waitForSelector(
+		const shown = await page.waitForSelector(
 			'[data-testid="panel-grid"], [data-testid="map-error"], [data-testid="error-page"]',
 		);
+		if ((await shown.getAttribute('data-testid')) === 'panel-grid') {
+			await page.waitForSelector('[data-testid="socket-dot"]:not([data-state="connecting"])');
+		}
 	}
 }
 

@@ -107,10 +107,12 @@ fn serve(listener: &TcpListener, asked: &Sender<()>) {
         if patient(&stream).is_err() || line(&stream).is_none_or(|knock| knock != KNOCK) {
             continue;
         }
-        let _ = stream.write_all(ANSWER.as_bytes());
+        // Noted before it is answered: the answer is what tells the other start it was
+        // heard, and by then the request has to be there to find.
         if asked.send(()).is_err() {
             return;
         }
+        let _ = stream.write_all(ANSWER.as_bytes());
     }
 }
 
