@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::command::{CommandOutput, Effect, MapCommand, Sequence, Tx};
 use super::connection::{AddConnection, SetConnectionStatus, connect};
 use super::error::{MapError, Result};
-use super::naming::bookmark::is_wormhole_class;
+use super::naming::bookmark::{is_abyssal_class, is_wormhole_class};
 use super::restore::RemoveRestored;
 use super::signatures::{LinkSignature, UnlinkSignature, UpdateSignature};
 use super::solar_system::{AddSystem, SetAlias};
@@ -323,11 +323,11 @@ async fn link_existing(
     }))
 }
 
-/// The destination's name and its placement, if the map has one. Refuses a destination
-/// the map keeps off.
+/// The destination's name and its placement, if the map has one. Refuses abyssal space and
+/// a destination the map keeps off.
 async fn target_of(tx: &mut Tx<'_>, cmd: &TrackJump) -> Result<(String, Option<i64>)> {
-    let target_name = sqlx::query_scalar!(
-        "select name from solar_systems where id = $1",
+    let target = sqlx::query!(
+        "select name, wormhole_class_id from solar_systems where id = $1",
         cmd.to_solar_system_id,
     )
     .fetch_optional(&mut **tx)
@@ -335,6 +335,14 @@ async fn target_of(tx: &mut Tx<'_>, cmd: &TrackJump) -> Result<(String, Option<i
     .ok_or_else(|| {
         MapError::Validation(format!("unknown solar system {}", cmd.to_solar_system_id))
     })?;
+    let target_name = target.name;
+    // A filament, not a hole. The clients drop these themselves; this is the copy that
+    // decides.
+    if is_abyssal_class(target.wormhole_class_id) {
+        return Err(MapError::Validation(format!(
+            "{target_name} is abyssal space"
+        )));
+    }
 
     let placed = sqlx::query_scalar!(
         "select id from map_solar_systems where map_id = $1 and solar_system_id = $2",

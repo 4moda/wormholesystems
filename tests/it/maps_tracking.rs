@@ -338,6 +338,23 @@ async fn flying_a_stargate_builds_nothing() {
 }
 
 #[tokio::test]
+async fn a_filament_into_abyssal_space_builds_nothing() {
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    let a = place_at(&pool, w.owner, w.map_id, SYS_A, 0.0).await;
+    sqlx::query("update solar_systems set wormhole_class_id = 21 where id = $1")
+        .bind(SYS_C)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let err = track_jump(&pool, w.owner, jump(w.map_id, a, SYS_C)).await;
+    assert!(matches!(err, Err(MapError::Validation(_))), "got {err:?}");
+    assert_eq!(systems(&pool, w.owner, w.map_id).await.len(), 1);
+    assert_eq!(connections(&pool, w.owner, w.map_id).await, 0);
+}
+
+#[tokio::test]
 async fn a_viewer_cannot_build_the_chain() {
     let (pool, _db) = common::db::fresh().await;
     let w = world(&pool).await;
