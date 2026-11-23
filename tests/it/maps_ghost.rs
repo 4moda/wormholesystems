@@ -80,6 +80,34 @@ async fn a_ghost_is_a_placement_with_no_system_hanging_off_the_scan() {
 }
 
 #[tokio::test]
+async fn a_ghost_is_never_abyssal_space() {
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    place(&pool, w.owner, w.map_id, SYS_A).await;
+    ghosting(&pool, w.owner, w.map_id).await;
+    let sig = scan(&pool, w.owner, w.map_id, SYS_A, "ABC-123").await;
+    let ghost = ghost_for(&pool, w.map_id, sig).await;
+    sqlx::query("update solar_systems set wormhole_class_id = 22 where id = $1")
+        .bind(SYS_B)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let err = resolve_ghost_system(
+        &pool,
+        w.owner,
+        ResolveGhostSystem {
+            map_id: w.map_id,
+            map_solar_system_id: ghost,
+            solar_system_id: Some(SYS_B),
+            ..Default::default()
+        },
+    )
+    .await;
+    assert!(matches!(err, Err(MapError::Validation(_))), "got {err:?}");
+}
+
+#[tokio::test]
 async fn resolving_names_the_ghost_and_keeps_where_it_sits() {
     let (pool, _db) = common::db::fresh().await;
     let w = world(&pool).await;

@@ -16,6 +16,7 @@ use sqlx::PgPool;
 use super::command::{CommandOutput, Effect, MapCommand, Sequence, Tx, run};
 use super::connection::{AddConnection, SetConnectionStatus};
 use super::error::{MapError, Result};
+use super::naming::bookmark::is_abyssal_class;
 use super::solar_system::{MapSolarSystem, SetAlias};
 use super::store::placements::{self, NewPlacement, PlacementRow};
 use super::{Actor, ConnectionType, MassStatus, TimeStatus, WormholeSize};
@@ -444,13 +445,18 @@ pub(super) async fn apply_resolve_ghost_system(
         return Err(MapError::Validation("that node is already a system".into()));
     }
 
-    let name = sqlx::query_scalar!(
-        "select name from solar_systems where id = $1",
+    let system = sqlx::query!(
+        "select name, wormhole_class_id from solar_systems where id = $1",
         solar_system_id
     )
     .fetch_optional(&mut **tx)
     .await?
     .ok_or_else(|| MapError::Validation(format!("unknown solar system {solar_system_id}")))?;
+    let name = system.name;
+    // No hole leads there, so no unmapped hole turns out to be one.
+    if is_abyssal_class(system.wormhole_class_id) {
+        return Err(MapError::Validation(format!("{name} is abyssal space")));
+    }
 
     let existing = sqlx::query_scalar!(
         "select id from map_solar_systems where map_id = $1 and solar_system_id = $2",
