@@ -179,3 +179,32 @@ async fn the_sync_asks_about_new_structures_first_and_leaves_refused_ones_a_day(
     structures::note_refused(&pool, named).await.unwrap();
     assert!(structures::is_named(&pool, named).await.unwrap());
 }
+
+/// The character list says who is docked, for the jump tracker: only while online, like
+/// the system, since a station kept from before a logout says nothing about now.
+#[tokio::test]
+async fn the_character_list_is_docked_only_while_online() {
+    use wormholesystems::identity::characters;
+
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    let mine = async || {
+        characters::list(&pool, w.owner)
+            .await
+            .expect("list")
+            .into_iter()
+            .find(|c| c.character_id == w.owner.character_id)
+            .expect("character is listed")
+            .is_docked
+    };
+
+    docked(&pool, w.map_id, w.owner, None, None).await;
+    assert!(!mine().await);
+    docked(&pool, w.map_id, w.owner, Some(STATION), None).await;
+    assert!(mine().await);
+    sqlx::query("update character_status set online = false")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(!mine().await);
+}

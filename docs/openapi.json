@@ -7084,6 +7084,7 @@
           "is_active",
           "is_preferred",
           "online",
+          "is_docked",
           "needs_login",
           "missing_scopes"
         ],
@@ -7102,6 +7103,10 @@
           },
           "is_active": {
             "type": "boolean"
+          },
+          "is_docked": {
+            "type": "boolean",
+            "description": "Docked in a station or structure right now, when online and tracked. A wormhole\nnever lands anyone docked, so a move that does is not a jump."
           },
           "is_preferred": {
             "type": "boolean",

@@ -312,6 +312,10 @@ ship's hull mass — the ledger behind the connection's mass-remaining estimate
 poller on every system change of a tracked character):
 
 - Stargate pairs (per the `stargates` table) are never logged.
+- Neither is a move into or out of abyssal space (classes 19–23): a filament, not a hole.
+- Nor a move that lands docked (`character_status.is_docked`, already the arrival when
+  this runs): a jump clone, a capsule self-destructed in a station, a pod death. A
+  wormhole always drops you in space.
 - Only maps where the character's user opted in (`map_user_settings.tracking_allowed`)
   and holds Member+ participate.
 - A matching `wormhole` connection (either direction) claims the row immediately; a

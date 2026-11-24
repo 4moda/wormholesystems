@@ -15,6 +15,7 @@ function pilot(
 		is_preferred: false,
 		online: true,
 		solar_system_id: system,
+		is_docked: false,
 		needs_login: false,
 		missing_scopes: [],
 		desktop_map_id: null,

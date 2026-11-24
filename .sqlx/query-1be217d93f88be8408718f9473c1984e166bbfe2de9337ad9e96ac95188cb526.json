@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select c.user_id, s.ship_type_id, s.ship_name\n           from characters c\n           left join character_status s on s.character_id = c.id\n           where c.id = $1",
+  "query": "select c.user_id, s.ship_type_id, s.ship_name, s.is_docked as \"is_docked?\"\n           from characters c\n           left join character_status s on s.character_id = c.id\n           where c.id = $1",
   "describe": {
     "columns": [
       {
@@ -35,6 +35,17 @@
             "name": "ship_name"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "is_docked?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "character_status",
+            "name": "is_docked"
+          }
+        }
       }
     ],
     "parameters": {
@@ -45,8 +56,9 @@
     "nullable": [
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "bfd3164447eda1bb84499f3fee380e52077ce2018f797bcb347eb3290c56d1e0"
+  "hash": "1be217d93f88be8408718f9473c1984e166bbfe2de9337ad9e96ac95188cb526"
 }

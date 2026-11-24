@@ -3,12 +3,12 @@
 //! estimate (`jumps_count` / `jumps_mass_sum` on [`MapConnection`](super::MapConnection)).
 //!
 //! [`record_transit`] runs on every observed system change of a tracked character: stargate
-//! hops and trips into abyssal space are ignored, and on each map where the character's
-//! user opted into tracking (Member+) the transit lands on the matching wormhole connection, or as a pending row
-//! (`connection_id` null) when the hole isn't mapped yet. Pending rows are claimed by a
-//! connection created within 120 seconds ([`claim_pending`]) and pruned after 10 minutes
-//! otherwise. Masses are hull masses from the seeded `types` table; in game the effective
-//! jump mass varies by ±10%.
+//! hops, trips into abyssal space and moves that land docked (a clone jump) are ignored,
+//! and on each map where the character's user opted into tracking (Member+) the transit
+//! lands on the matching wormhole connection, or as a pending row (`connection_id` null)
+//! when the hole isn't mapped yet. Pending rows are claimed by a connection created within
+//! 120 seconds ([`claim_pending`]) and pruned after 10 minutes otherwise. Masses are hull
+//! masses from the seeded `types` table; in game the effective jump mass varies by ±10%.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -452,8 +452,8 @@ async fn could_be_a_hole(pool: &PgPool, from: i64, to: i64) -> Result<bool> {
 }
 
 /// Record an observed transit of a tracked character between two systems. Called from
-/// the location poller on every system change; failures must never break polling, so
-/// callers log-and-continue.
+/// the location poller on every system change, once it has written where the character
+/// landed; failures must never break polling, so callers log-and-continue.
 pub async fn record_transit(
     pool: &PgPool,
     character_id: i64,
@@ -465,7 +465,7 @@ pub async fn record_transit(
     }
 
     let character = sqlx::query!(
-        r#"select c.user_id, s.ship_type_id, s.ship_name
+        r#"select c.user_id, s.ship_type_id, s.ship_name, s.is_docked as "is_docked?"
            from characters c
            left join character_status s on s.character_id = c.id
            where c.id = $1"#,
@@ -476,6 +476,11 @@ pub async fn record_transit(
     let Some(character) = character else {
         return Ok(());
     };
+    // A wormhole always drops you in space. Landing docked is a jump clone, or a capsule
+    // self-destructed to wake up in another one, or a pod death: nowhere a hole leads.
+    if character.is_docked == Some(true) {
+        return Ok(());
+    }
     let mass = match character.ship_type_id {
         // Losing the mass understates the hole's, but losing the jump is worse.
         Some(t) => ship_mass(pool, t).await.unwrap_or_else(|err| {

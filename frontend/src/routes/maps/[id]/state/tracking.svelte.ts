@@ -1,10 +1,10 @@
 // Building the chain as you fly it. Watching the active character's system is the whole
 // trick, and every guard here exists because something other than a jump also changes that
-// number: switching character, logging in, taking a gate, running a filament. Anything ambiguous is dropped
-// rather than guessed at.
+// number: switching character, logging in, taking a gate, running a filament, a clone
+// jump. Anything ambiguous is dropped rather than guessed at.
 
 import { ghostAliases, ghostsFrom, existingConnection } from '$lib/map/ghosts';
-import { detectJump } from '$lib/map/jump-detection';
+import { detectJump, type Reading } from '$lib/map/jump-detection';
 import { trackedPilots } from '$lib/map/tracked-pilots';
 import { solarSystemId, type MappedSystem } from '$lib/map/system';
 import type { CharacterRef } from '$lib/api/types/CharacterRef';
@@ -100,7 +100,7 @@ export class JumpTracker {
 
 	// What the last poll saw of each tracked pilot, so a change can be told apart from the
 	// first reading.
-	private seen = new Map<number, number | null>();
+	private seen = new Map<number, Reading>();
 	// Jumps that landed while a prompt was open, asked about in turn.
 	private queued: Jump[] = [];
 
@@ -119,15 +119,16 @@ export class JumpTracker {
 			this.map.settings()?.tracked_character_ids ?? [],
 		);
 		const jumps: Jump[] = [];
-		const seen = new Map<number, number | null>();
+		const seen = new Map<number, Reading>();
 		for (const pilot of pilots) {
 			const characterId = pilot.character_id;
-			const next = {
+			const next: Reading = {
 				characterId,
 				systemId: pilot.online ? (pilot.solar_system_id ?? null) : null,
+				docked: pilot.is_docked,
 			};
-			const prev = { characterId, systemId: this.seen.get(characterId) ?? null };
-			seen.set(characterId, next.systemId);
+			const prev = this.seen.get(characterId) ?? { characterId, systemId: null, docked: false };
+			seen.set(characterId, next);
 			const jump = detectJump(prev, next);
 			// A desktop app watching this pilot maps their jumps the moment they happen;
 			// mapping them here too only races it.

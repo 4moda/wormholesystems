@@ -83,20 +83,30 @@ function fakeHost(over: Partial<TrackerHost> = {}) {
 	return { host, trackJump, resolveGhost, setPilots };
 }
 
-/** Feed the tracker two readings of one pilot: the baseline, then the arrival. */
+/** One online pilot's reading. */
+const pilot = (solarSystemId: number, docked = false) =>
+	({
+		character_id: 9,
+		is_active: true,
+		online: true,
+		solar_system_id: solarSystemId,
+		is_docked: docked,
+	}) as CharacterRef;
+
+/**
+ * Feed the tracker two readings of one pilot: the baseline, then the arrival, each in space
+ * unless `docked` says otherwise.
+ */
 async function fly(
 	tracker: JumpTracker,
 	setPilots: (pilots: CharacterRef[]) => void,
 	from: number,
 	to: number,
+	docked: { from?: boolean; to?: boolean } = {},
 ) {
-	setPilots([
-		{ character_id: 9, is_active: true, online: true, solar_system_id: from } as CharacterRef,
-	]);
+	setPilots([pilot(from, docked.from)]);
 	tracker.observe();
-	setPilots([
-		{ character_id: 9, is_active: true, online: true, solar_system_id: to } as CharacterRef,
-	]);
+	setPilots([pilot(to, docked.to)]);
 	tracker.observe();
 	await settle();
 }
@@ -144,6 +154,35 @@ describe('JumpTracker', () => {
 		});
 		const tracker = new JumpTracker(host);
 		await fly(tracker, setPilots, 100, 32000041);
+		expect(trackJump).not.toHaveBeenCalled();
+		expect(resolveGhost).not.toHaveBeenCalled();
+		expect(tracker.prompt).toBeNull();
+	});
+
+	it('maps nothing for a clone jump, even with one unflown hole waiting', async () => {
+		const { host, trackJump, resolveGhost, setPilots } = fakeHost({
+			systems: () => [system(1, 100), ghost(2)],
+			connections: () => [conn(10, 1, 2)],
+		});
+		const tracker = new JumpTracker(host);
+		await fly(tracker, setPilots, 100, 30000142, { from: true, to: true });
+		expect(trackJump).not.toHaveBeenCalled();
+		expect(resolveGhost).not.toHaveBeenCalled();
+		expect(tracker.prompt).toBeNull();
+	});
+
+	it('maps a jump that began docked, once it lands in space', async () => {
+		const { host, trackJump, setPilots } = fakeHost();
+		const tracker = new JumpTracker(host);
+		await fly(tracker, setPilots, 100, 200, { from: true });
+		expect(trackJump).toHaveBeenCalledOnce();
+	});
+
+	it('maps nothing for docking or undocking in place', async () => {
+		const { host, trackJump, resolveGhost, setPilots } = fakeHost();
+		const tracker = new JumpTracker(host);
+		await fly(tracker, setPilots, 100, 100, { to: true });
+		await fly(tracker, setPilots, 100, 100, { from: true });
 		expect(trackJump).not.toHaveBeenCalled();
 		expect(resolveGhost).not.toHaveBeenCalled();
 		expect(tracker.prompt).toBeNull();

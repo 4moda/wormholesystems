@@ -312,6 +312,47 @@ async fn a_trip_into_abyssal_space_is_not_a_transit() {
     assert_eq!(count, 0);
 }
 
+/// A jump clone, or a capsule self-destructed in a station, moves the pilot to another
+/// system docked. The poller has written where they landed by the time it records the
+/// transit, so that is the docking judged, and where they left from is not.
+#[tokio::test]
+async fn a_move_that_lands_docked_is_not_a_transit() {
+    let (pool, _db) = common::db::fresh().await;
+    let w = world(&pool).await;
+    allow_tracking(&pool, w.map_id, w.owner.user_id).await;
+    place(&pool, w.owner, w.map_id, SYS_A).await;
+    let land = |station_id: Option<i64>| {
+        sqlx::query(
+            "insert into character_status (character_id, online, solar_system_id, station_id)
+             values ($1, true, $2, $3)
+             on conflict (character_id) do update
+             set solar_system_id = excluded.solar_system_id, station_id = excluded.station_id",
+        )
+        .bind(w.owner.character_id)
+        .bind(SYS_B)
+        .bind(station_id)
+    };
+    let count = async || -> i64 {
+        sqlx::query_scalar("select count(*) from map_connection_jumps")
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+    };
+
+    land(Some(60_003_760)).execute(&pool).await.unwrap();
+    record_transit(&pool, w.owner.character_id, SYS_A, SYS_B)
+        .await
+        .unwrap();
+    assert_eq!(count().await, 0);
+
+    // The same move landing in space is a hole nobody has mapped yet, wherever it began.
+    land(None).execute(&pool).await.unwrap();
+    record_transit(&pool, w.owner.character_id, SYS_A, SYS_B)
+        .await
+        .unwrap();
+    assert_eq!(count().await, 1);
+}
+
 /// One transit is judged map by map: a map where the pilot is only a viewer records
 /// nothing, and neither does one that has the pair mapped as a stargate.
 #[tokio::test]

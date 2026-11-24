@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select c.id, c.name, c.is_preferred, coalesce(s.online, false) as \"online!\",\n                  case when s.online then s.solar_system_id end as \"solar_system_id?\",\n                  exists (select 1 from esi_tokens t\n                          where t.character_id = c.id and t.rejected_at is not null)\n                      as \"needs_login!\"\n           from characters c\n           left join character_status s on s.character_id = c.id\n           where c.user_id = $1 order by c.name",
+  "query": "select c.id, c.name, c.is_preferred, coalesce(s.online, false) as \"online!\",\n                  case when s.online then s.solar_system_id end as \"solar_system_id?\",\n                  coalesce(s.online and s.is_docked, false) as \"is_docked!\",\n                  exists (select 1 from esi_tokens t\n                          where t.character_id = c.id and t.rejected_at is not null)\n                      as \"needs_login!\"\n           from characters c\n           left join character_status s on s.character_id = c.id\n           where c.user_id = $1 order by c.name",
   "describe": {
     "columns": [
       {
@@ -50,6 +50,12 @@
       },
       {
         "ordinal": 5,
+        "name": "is_docked!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
         "name": "needs_login!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -66,8 +72,9 @@
       false,
       null,
       null,
+      null,
       null
     ]
   },
-  "hash": "4cda00c0871c87f881c3a7bd4b7ce7c616578a1f64eeab2a6f937aa0ce6a5e8f"
+  "hash": "4ebd0fad2cee8b83d43b1c567f5d4dd2ef72ef69a0500e246bcbe4807c076aa9"
 }

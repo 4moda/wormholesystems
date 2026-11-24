@@ -75,6 +75,9 @@ pub struct CharacterRef {
     /// Where the character is right now, when online and tracked. Drives the paste
     /// system-mismatch warning.
     pub solar_system_id: Option<i64>,
+    /// Docked in a station or structure right now, when online and tracked. A wormhole
+    /// never lands anyone docked, so a move that does is not a jump.
+    pub is_docked: bool,
     /// EVE refused this character's token (revoked, or rotated away), so it is not tracked
     /// and cannot act until it logs in again.
     pub needs_login: bool,
@@ -154,6 +157,7 @@ pub async fn list(pool: &PgPool, actor: Actor) -> Result<Vec<CharacterRef>> {
     let rows = sqlx::query!(
         r#"select c.id, c.name, c.is_preferred, coalesce(s.online, false) as "online!",
                   case when s.online then s.solar_system_id end as "solar_system_id?",
+                  coalesce(s.online and s.is_docked, false) as "is_docked!",
                   exists (select 1 from esi_tokens t
                           where t.character_id = c.id and t.rejected_at is not null)
                       as "needs_login!"
@@ -197,6 +201,7 @@ pub async fn list(pool: &PgPool, actor: Actor) -> Result<Vec<CharacterRef>> {
             is_preferred: r.is_preferred,
             online: r.online,
             solar_system_id: r.solar_system_id,
+            is_docked: r.is_docked,
             needs_login: r.needs_login,
             desktop_map_id: crate::pilots::desktop::mapping_on(r.id),
         })

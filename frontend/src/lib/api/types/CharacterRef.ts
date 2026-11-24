@@ -14,6 +14,11 @@ is_preferred: boolean, online: boolean,
  */
 solar_system_id: number | null, 
 /**
+ * Docked in a station or structure right now, when online and tracked. A wormhole
+ * never lands anyone docked, so a move that does is not a jump.
+ */
+is_docked: boolean, 
+/**
  * EVE refused this character's token (revoked, or rotated away), so it is not tracked
  * and cannot act until it logs in again.
  */
